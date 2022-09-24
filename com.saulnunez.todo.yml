@@ -1,0 +1,15 @@
+app-id: com.saulnunez.todo
+runtime: org.freedesktop.Platform
+runtime-version: '21.08'
+sdk: org.freedesktop.Sdk
+command: todo
+modules:
+  - name: todo
+    buildsystem: simple
+    build-commands:
+      - dotnet build --configuration Release --self-contained
+    sources:
+      - type: dir
+        path: .
+finish-args:
+  - --share=network
