@@ -1,0 +1,21 @@
+name: todo-unofficial-cli
+base: core22
+version: '0.1'
+summary: A CLI app for Microsoft ToDo
+description: |
+  An unofficial CLI app to handle your Microsoft ToDo tasks.
+  Organize your life and create, delete, update your tasks from the confort 
+  of the terminal or do some cool automation cron job.
+grade: devel
+confinement: devmode
+
+parts:
+  todo:
+    source: .
+    plugin: dotnet
+
+apps:
+  todo:
+    command: todo
+
+  
