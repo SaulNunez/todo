@@ -3,14 +3,17 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using todo.Models;
 
 namespace todo
 {
     internal interface IApiOutput
     {
-        void ShowList(string listName, List<string> tasks);
-        void DeleteTask(string taskName);
-        void CheckTask(string taskName);
-        void AddTask(string taskName);
+        Task CreateTaskList(string listName);
+        Task DeleteTaskList(string listName);
+        Task AddTask(string taskName, string listName);
+        Task CheckTask(string taskName, string listName);
+        Task DeleteTask(string taskName, string listName);
+        Task ShowList(string listName);
     }
 }

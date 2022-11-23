@@ -59,7 +59,8 @@ public class ApiQueries
         return tasks;
     }
 
-    async Task<TodoTask> CreateTask(string title, string listName, List<string>? fileUri, List<string>? checkListItems, string notes, bool remind = false)
+    public async Task<TodoTask> CreateTask(string title, string listName, List<string>? fileUri = null, 
+        List<string>? checkListItems = null, string? notes = "", bool? remind = false)
     {
         var newTask = new TodoTask();
         newTask.Title = title;
@@ -80,13 +81,19 @@ public class ApiQueries
             .AddAsync(newTask);
     }
 
-    Task<ITodoTaskListTasksCollectionPage> GetListAsync(string listId)
+    Task<ITodoTaskListTasksCollectionPage> GetListAsyncById(string listId)
     {
         var tasks = graphClient.Me.Todo.Lists[listId].Tasks
         .Request()
         .GetAsync();
 
         return tasks; 
+    }
+
+    public async Task<ITodoTaskListTasksCollectionPage> GetListAsync(string listName)
+    {
+        var listId = await GetListId(listName);
+        return await GetListAsyncById(listId);
     }
 
     public Task<ITodoListsCollectionPage> GetAvailableLists()
@@ -126,5 +133,10 @@ public class ApiQueries
         return graphClient.Me.Todo.Lists[taskListId]
             .Request()
             .DeleteAsync();
+    }
+
+    internal Task CheckTask(string listName, string taskName)
+    {
+        throw new NotImplementedException();
     }
 }

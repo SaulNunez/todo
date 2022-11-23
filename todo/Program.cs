@@ -1,13 +1,19 @@
-﻿using System.CommandLine;
+﻿using Microsoft.Extensions.Configuration;
+using System.CommandLine;
+using todo;
 
-var rootCommand = new RootCommand();
+var config = new ConfigurationBuilder()
+    .AddJsonFile("appsettings.json")
+    .Build();
+
+var authInformation = config.GetSection("AzureADInfo").Get<AzureADOauth>();
+
+var rootCommand = new RootCommand(description: "Unofficial CLI for To-Do.");
 
 var interactiveOption = new Option("--interactive",
     getDefaultValue: () => true);
 rootCommand.AddGlobalOption(interactiveOption);
 
-var loginCommand = new Command("login", "");
-rootCommand.Add(loginCommand);
 
 var logoutCommand = new Command("logout");
 rootCommand.Add(logoutCommand);
@@ -27,7 +33,7 @@ SetupUncheckTaskCommand(listCommand);
 
 rootCommand.Add(listCommand);
 
-var myDayCommand = new Command("myday");
+var myDayCommand = new Command("myday", "Tasks to tackle today!");
 rootCommand.Add(myDayCommand);
 
 var importartCommand = new Command("important");
@@ -46,11 +52,17 @@ tasksCommand.SetHandler(() =>
 });
 rootCommand.Add(tasksCommand);
 
+var loginCommand = new Command("login", "Log in with Microsoft Account (either personal or institutional account)");
+loginCommand.SetHandler(() =>
+{
+    Auth.LoginUser(authInformation);
+});
+
 return await rootCommand.InvokeAsync(args);
 
 static void SetupAddCommand(Command command)
 {
-    var addCommand = new Command("add", "Add a new task");
+    var addCommand = new Command("add", "Create a new task");
 
     var taskTitleArgument = new Argument<string>("title", "Title of task.");
     addCommand.AddArgument(taskTitleArgument);

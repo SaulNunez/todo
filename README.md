@@ -2,6 +2,20 @@
 
 ⚠️ **Warning:** This tool is super early in development, commands and flags might change between updates!
 
+## Install
+### Windows
+#### Standalone
+
+#### winget
+
+### Linux
+#### Snap
+
+#### Flatpack
+
+### MacOS
+#### Brew
+
 ## Setup
 ```bash
 todo login
@@ -17,21 +31,21 @@ todo logout
 ```bash
 todo add
 ```
-Uses `stdin` for title of task. In interactive UI, a CLI wizard will help filling all available fields.
+Use `stdin` for title of task. In interactive UI, a CLI wizard will help filling all available fields.
 
 ```bash
-todo add "Buy " --date "" --notes "" --add-to-my-day --remind --repeat weekly --checklist "" --checklist "" --file "" --file ""
+todo add "Buy milk" --date "" --notes "" --add-to-my-day --remind --repeat weekly --checklist "" --checklist "" --file "" --file ""
 ```
 
 ### Marking completion
 ```bash
-todo check "Comprar leche"
+todo check "Buy milk"
 ```
 Marks a task as completed.
 
 ### Delete task
 ```bash
-todo delete "Comprar leche"
+todo delete "Buy milk"
 ```
 
 ### Show all tasks
@@ -73,7 +87,7 @@ todo list "My cool project" tasks
 Show tasks in "My Cool project" list.
 
 ### Aliases
-Rather than typing list "My day" or any other list created by default. The following aliases can be used:
+Rather than typing `list "My day"` or any other list created by default. The following aliases can be used:
 
 ```bash
 todo myday

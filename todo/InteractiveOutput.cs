@@ -8,22 +8,32 @@ namespace todo
 {
     internal class InteractiveOutput : IApiOutput
     {
-        public void AddTask(string taskName)
+        public Task AddTask(string taskName, string listName)
         {
             throw new NotImplementedException();
         }
 
-        public void CheckTask(string taskName)
+        public Task CheckTask(string taskName, string listName)
         {
             throw new NotImplementedException();
         }
 
-        public void DeleteTask(string taskName)
+        public Task CreateTaskList(string listName)
         {
             throw new NotImplementedException();
         }
 
-        public void ShowList(string listName, List<string> tasks)
+        public Task DeleteTask(string taskName, string listName)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task DeleteTaskList(string listName)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task ShowList(string listName)
         {
             throw new NotImplementedException();
         }

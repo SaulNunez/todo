@@ -3,29 +3,81 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using todo.Models;
 
-namespace todo
+namespace todo;
+
+public class PipeOutput : IApiOutput
 {
-    internal class PipeOutput : IApiOutput
+    public ApiQueries api;
+
+    public PipeOutput()
     {
-        public void AddTask(string taskName)
-        {
-            throw new NotImplementedException();
-        }
+        api = null;
+    }
 
-        public void CheckTask(string taskName)
+    public async Task CreateTaskList(string listName)
+    {
+        try
         {
-            throw new NotImplementedException();
+            await api.AddTaskList(listName);
+            Console.WriteLine("Task list created");
         }
-
-        public void DeleteTask(string taskName)
+        catch (Exception e)
         {
-            throw new NotImplementedException();
+            Console.WriteLine($"Oops, something went wrong. Error: {e.Message}");
         }
+    }
 
-        public void ShowList(string listName, List<string> tasks)
+    public async Task DeleteTaskList(string listName)
+    {
+        try
         {
-            throw new NotImplementedException();
+            await api.DeleteTaskListByName(listName);
+            Console.WriteLine("Task list deleted");
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine($"Oops, something went wrong. Error: {e.Message}");
+        }
+    }
+
+    public async Task AddTask(string taskName, string listName)
+    {
+        try
+        {
+            await api.CreateTask(taskName, listName);
+        } catch(Exception e)
+        {
+            Console.WriteLine("Oops...something went wrong. 😓");
+            Console.WriteLine(e.Message);
+        }
+        await ShowList(listName);
+    }
+
+    public async Task CheckTask(string taskName, string listName)
+    {
+        await api.CheckTask(listName, taskName);
+        await ShowList(listName);
+    }
+
+    public async Task DeleteTask(string taskName, string listName)
+    {
+        await api.DeleteByName(listName, taskName);
+        await ShowList(listName);
+    }
+
+    public async Task ShowList(string listName)
+    {
+        Console.WriteLine(listName);
+        Console.WriteLine();
+
+        var tasks = await api.GetListAsync(listName);
+
+        foreach (var task in tasks)
+        {
+            var taskMarked = task.Status == Microsoft.Graph.TaskStatus.Completed ? "x" : "";
+            Console.WriteLine($"[{taskMarked}]\t{task.Title}\t{task.DueDateTime}");
         }
     }
 }

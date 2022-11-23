@@ -3,18 +3,25 @@ using Azure.Identity;
 using Microsoft.Extensions.Configuration;
 using todo;
 
-public class Auth
+public static class Auth
 {
-    static string[] scopes = new[] { "User.Read", "User.Write" }; 
-    public readonly GraphServiceClient graphServiceClient;
+    static readonly string[] scopes = new[] { "User.Read", "User.Write" };
+    static readonly string MultiTenantId = "common";
 
-    public Auth(AzureADOauth config)
+    public static GraphServiceClient LoginUser(AzureADOauth config)
     {
-        var credential = new DeviceCodeCredential(new DeviceCodeCredentialOptions()
+        var options = new TokenCredentialOptions
         {
-            TenantId = config.TenantId,
-            ClientId = config.ClientId,
-        });
-        graphServiceClient = new GraphServiceClient(credential, scopes);
+            AuthorityHost = AzureAuthorityHosts.AzurePublicCloud
+        };
+
+        Func<DeviceCodeInfo, CancellationToken, Task> callback = (code, cancellation) => {
+            Console.WriteLine("To continue, enter code below to https://learn.microsoft.com/dotnet/api/azure.identity.devicecodecredential:");
+            Console.WriteLine(code.Message);
+            return Task.FromResult(0);
+        };
+
+        var credential = new DeviceCodeCredential(callback, MultiTenantId, config.ClientId, options);
+        return new GraphServiceClient(credential, scopes);
     }
 }
