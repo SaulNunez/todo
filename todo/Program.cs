@@ -10,6 +10,8 @@ var authInformation = config.GetSection("AzureADInfo").Get<AzureADOauth>();
 
 var rootCommand = new RootCommand(description: "Unofficial CLI for To-Do.");
 
+var api = new PipeOutput();
+
 var interactiveOption = new Option("--interactive",
     getDefaultValue: () => true);
 rootCommand.AddGlobalOption(interactiveOption);
@@ -35,28 +37,51 @@ rootCommand.Add(listCommand);
 
 var myDayCommand = new Command("myday", "Tasks to tackle today!");
 rootCommand.Add(myDayCommand);
+myDayCommand.SetHandler(async () =>
+{
+    await api.ShowList("My Day");
+});
 
 var importartCommand = new Command("important");
 rootCommand.Add(importartCommand);
+myDayCommand.SetHandler(async () =>
+{
+    await api.ShowList("Important");
+});
 
 var plannedCommand = new Command("planned");
 rootCommand.Add(plannedCommand);
+myDayCommand.SetHandler(async () =>
+{
+    await api.ShowList("Planned");
+});
 
 var assignedCommand = new Command("assigned");
 rootCommand.Add(assignedCommand);
+myDayCommand.SetHandler(async () =>
+{
+    await api.ShowList("Assigned");
+});
 
 var tasksCommand = new Command("tasks", "List tasks");
-tasksCommand.SetHandler(() =>
+var taskListName = new Argument("taskList", "Task list");
+taskListName.SetDefaultValue("Tasks");
+tasksCommand.SetHandler(async (String taskList) =>
 {
-
-});
+    await api.ShowList(taskList);
+}, taskListName);
 rootCommand.Add(tasksCommand);
 
 var loginCommand = new Command("login", "Log in with Microsoft Account (either personal or institutional account)");
-loginCommand.SetHandler(() =>
+var loginMethodOption = new Argument<Auth.LoginMethod>("method", () => Auth.LoginMethod.Code, "Way to allow notifications");
+
+loginCommand.AddArgument(loginMethodOption);
+loginCommand.SetHandler(async (Auth.LoginMethod loginMethodValue) =>
 {
-    Auth.LoginUser(authInformation);
-});
+    await Auth.Login(authInformation, loginMethodValue);
+    Console.WriteLine("Hello");
+}, loginMethodOption);
+rootCommand.Add(loginCommand);
 
 return await rootCommand.InvokeAsync(args);
 
@@ -100,11 +125,12 @@ static void SetupAddCommand(Command command)
     };
     addCommand.AddOption(fileOption);
 
-    //addCommand.SetHandler(async (name, date, notes, addToMyDay, remindOption, fileOption) =>
-    //{
-
-    //},
-    //taskTitleArgument, dateOption, notesOption, addToMyDayOption, remindOption, fileOption);
+    addCommand.SetHandler(async (string name, string date, string notes, bool addToMyDay, 
+        string remindOption, string? fileOption) =>
+    {
+        //await api.AddTask(name, "Task");
+    },
+    taskTitleArgument, dateOption, notesOption, addToMyDayOption, remindOption, fileOption);
     command.Add(addCommand);
 }
 
@@ -115,11 +141,11 @@ static void SetupDeleteCommand(Command rootCommand)
     var taskNameArgument = new Argument<string>("task name", "Name of the task.");
     deleteCommand.AddArgument(taskNameArgument);
 
-    //deleteCommand.SetHandler((name) =>
-    //{
-
-    //},
-    //taskNameArgument);
+    deleteCommand.SetHandler(async (String name) =>
+    {
+        //await api.DeleteTask(name, "Task");
+    },
+    taskNameArgument);
 
     rootCommand.Add(deleteCommand);
 }
