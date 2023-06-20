@@ -28,34 +28,31 @@ class Program
         }, addTaskNameArgument);
         rootCommand.Add(addCommand);
 
-        var checkCommand = new Command("check", "Mark a task as done in Microsoft To-Do")
-            {
-                new Argument<string>("task", "Task title to complete"),
-            };
+        var checkCommand = new Command("check", "Mark a task as done in Microsoft To-Do");
+        var checkTaskArgument = new Argument<string>("task", "Task title to complete");
+        checkCommand.Add(checkTaskArgument);
         checkCommand.SetHandler<string>(async (task) =>
         {
             await CheckTaskInMicrosoftToDoAsync(task, "Tasks");
-        });
+        }, checkTaskArgument);
         rootCommand.Add(checkCommand);
 
-        var uncheckCommand = new Command("uncheck", "Mark a task as not done in Microsoft To-Do")
-            {
-                new Argument<string>("task", "Task title to uncheck"),
-            };
+        var uncheckCommand = new Command("uncheck", "Mark a task as not done in Microsoft To-Do");
+        var uncheckTaskArgument = new Argument<string>("task", "Task title to uncheck");
+        uncheckCommand.Add(uncheckTaskArgument);
         uncheckCommand.SetHandler<string>(async (task) =>
         {
             await UncheckTaskInMicrosoftToDoAsync(task, "Tasks");
-        });
+        }, uncheckTaskArgument);
         rootCommand.Add(uncheckCommand);
 
-        var deleteCommand = new Command("delete", "Delete a task from Microsoft To-Do")
-            {
-                new Argument<string>("task", "Task title to delete"),
-            };
+        var deleteCommand = new Command("delete", "Delete a task from Microsoft To-Do");
+        var deleteTaskArgument = new Argument<string>("task", "Task title to delete");
+        deleteCommand.Add(deleteTaskArgument);
         deleteCommand.SetHandler<string>(async (task) =>
         {
             await DeleteTaskFromMicrosoftToDoAsync(task, "Tasks");
-        });
+        }, deleteTaskArgument);
         rootCommand.Add(deleteCommand);
 
         var listCommand = new Command("list", "Perform operations on a specific list in Microsoft To-Do")
