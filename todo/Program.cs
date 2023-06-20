@@ -1,163 +1,170 @@
-﻿using Microsoft.Extensions.Configuration;
+﻿using todo;
+using Microsoft.Graph;
 using System.CommandLine;
-using todo;
+using Microsoft.Extensions.Configuration;
+using TaskStatus = Microsoft.Graph.TaskStatus;
 
-var config = new ConfigurationBuilder()
-    .AddJsonFile("appsettings.json")
-    .Build();
-
-var authInformation = config.GetSection("AzureADInfo").Get<AzureADOauth>();
-
-var rootCommand = new RootCommand(description: "Unofficial CLI for To-Do.");
-
-var api = new PipeOutput();
-
-var interactiveOption = new Option("--interactive",
-    getDefaultValue: () => true);
-rootCommand.AddGlobalOption(interactiveOption);
-
-
-var logoutCommand = new Command("logout");
-rootCommand.Add(logoutCommand);
-
-SetupAddCommand(rootCommand);
-SetupDeleteCommand(rootCommand);
-SetupCheckTaskCommand(rootCommand);
-SetupUncheckTaskCommand(rootCommand);
-
-var listCommand = new Command("list", "");
-var listNameArgument = new Argument<string>("list name");
-listCommand.AddArgument(listNameArgument);
-SetupAddCommand(listCommand);
-SetupDeleteCommand(listCommand);
-SetupCheckTaskCommand(listCommand);
-SetupUncheckTaskCommand(listCommand);
-
-rootCommand.Add(listCommand);
-
-var myDayCommand = new Command("myday", "Tasks to tackle today!");
-rootCommand.Add(myDayCommand);
-myDayCommand.SetHandler(async () =>
+class Program
 {
-    await api.ShowList("My Day");
-});
-
-var importartCommand = new Command("important");
-rootCommand.Add(importartCommand);
-myDayCommand.SetHandler(async () =>
-{
-    await api.ShowList("Important");
-});
-
-var plannedCommand = new Command("planned");
-rootCommand.Add(plannedCommand);
-myDayCommand.SetHandler(async () =>
-{
-    await api.ShowList("Planned");
-});
-
-var assignedCommand = new Command("assigned");
-rootCommand.Add(assignedCommand);
-myDayCommand.SetHandler(async () =>
-{
-    await api.ShowList("Assigned");
-});
-
-var tasksCommand = new Command("tasks", "List tasks");
-var taskListName = new Argument("taskList", "Task list");
-taskListName.SetDefaultValue("Tasks");
-tasksCommand.SetHandler(async (String taskList) =>
-{
-    await api.ShowList(taskList);
-}, taskListName);
-rootCommand.Add(tasksCommand);
-
-var loginCommand = new Command("login", "Log in with Microsoft Account (either personal or institutional account)");
-var loginMethodOption = new Argument<Auth.LoginMethod>("method", () => Auth.LoginMethod.Code, "Way to allow notifications");
-
-loginCommand.AddArgument(loginMethodOption);
-loginCommand.SetHandler(async (Auth.LoginMethod loginMethodValue) =>
-{
-    await Auth.Login(authInformation, loginMethodValue);
-    Console.WriteLine("Hello");
-}, loginMethodOption);
-rootCommand.Add(loginCommand);
-
-return await rootCommand.InvokeAsync(args);
-
-static void SetupAddCommand(Command command)
-{
-    var addCommand = new Command("add", "Create a new task");
-
-    var taskTitleArgument = new Argument<string>("title", "Title of task.");
-    addCommand.AddArgument(taskTitleArgument);
-
-    var stepOption = new Option("--step")
+    static AzureADOauth? authInformation;
+    
+    static async Task<int> Main(string[] args)
     {
-        Arity = ArgumentArity.ZeroOrMore
-    };
-    addCommand.AddOption(stepOption);
+        var config = new ConfigurationBuilder()
+            .AddJsonFile("appsettings.json")
+            .Build();
 
-    var dateOption = new Option("--date", "Due date for task")
+        authInformation = config.GetSection("AzureADInfo").Get<AzureADOauth>();
+
+        var rootCommand = new RootCommand(description: "Unofficial CLI for To-Do.");
+
+        var addCommand = new Command("add", "Create a task in Microsoft To-Do");
+        var addTaskNameArgument = new Argument<string>("task", "Task description");
+        addCommand.Add(addTaskNameArgument);
+
+        addCommand.SetHandler<string>(async (task) =>
+        {
+            await AddTaskToMicrosoftToDoAsync(task, "Tasks");
+        }, addTaskNameArgument);
+        rootCommand.Add(addCommand);
+
+        var checkCommand = new Command("check", "Mark a task as done in Microsoft To-Do")
+            {
+                new Argument<string>("task", "Task title to complete"),
+            };
+        checkCommand.SetHandler<string>(async (task) =>
+        {
+            await CheckTaskInMicrosoftToDoAsync(task, "Tasks");
+        });
+        rootCommand.Add(checkCommand);
+
+        var uncheckCommand = new Command("uncheck", "Mark a task as not done in Microsoft To-Do")
+            {
+                new Argument<string>("task", "Task title to uncheck"),
+            };
+        uncheckCommand.SetHandler<string>(async (task) =>
+        {
+            await UncheckTaskInMicrosoftToDoAsync(task, "Tasks");
+        });
+        rootCommand.Add(uncheckCommand);
+
+        var deleteCommand = new Command("delete", "Delete a task from Microsoft To-Do")
+            {
+                new Argument<string>("task", "Task title to delete"),
+            };
+        deleteCommand.SetHandler<string>(async (task) =>
+        {
+            await DeleteTaskFromMicrosoftToDoAsync(task, "Tasks");
+        });
+        rootCommand.Add(deleteCommand);
+
+        var listCommand = new Command("list", "Perform operations on a specific list in Microsoft To-Do")
+            {
+                new Argument<string>("listName", "Name of the list")
+            };
+        /*listCommand.SetHandler<string>(async (listName, command) =>
+        {
+            // Perform operations on the specified list
+            await PerformListOperationsAsync(listName, command);
+        });*/
+
+        return await rootCommand.InvokeAsync(args);
+    }
+
+    static async Task AddTaskToMicrosoftToDoAsync(string task, string listName)
     {
-        Arity = ArgumentArity.ZeroOrOne
-    };
-    addCommand.AddOption(dateOption);
+        var graphClient = await Auth.LoginUserAsync(authInformation!);
 
-    var notesOption = new Option<string>("--notes")
+        var todoTask = new TodoTask
+        {
+            Title = task
+        };
+
+        await graphClient.Me.Todo.Lists[listName].Tasks.Request().AddAsync(todoTask);
+        Console.WriteLine($"Task '{task}' added to list '{listName}'.");
+    }
+
+    static async Task CheckTaskInMicrosoftToDoAsync(string taskTitle, string listName)
     {
-        Arity = ArgumentArity.ZeroOrOne
-    };
-    addCommand.AddOption(notesOption);
+        var graphClient = await Auth.LoginUserAsync(authInformation!);
 
-    var addToMyDayOption = new Option<bool>("--add-to-day", getDefaultValue: () => false);
-    addCommand.AddOption(addToMyDayOption);
+        var queryOptions = new QueryOption("Filter", $"status ne 'completed' and title eq '{taskTitle}'");
 
-    var remindOption = new Option("--remind")
+        var todoTasks = await graphClient.Me.Todo.Lists[listName].Tasks.Request(new List<QueryOption>{queryOptions}).GetAsync();
+
+        var taskToComplete = todoTasks.FirstOrDefault();
+        if (taskToComplete != null)
+        {
+            taskToComplete.Status = TaskStatus.Completed;
+            await graphClient.Me.Todo.Lists[listName].Tasks[taskToComplete.Id].Request().UpdateAsync(taskToComplete);
+            Console.WriteLine($"Task '{taskTitle}' marked as completed in list '{listName}'.");
+        }
+        else
+        {
+            Console.WriteLine($"Task '{taskTitle}' not found in list '{listName}'.");
+        }
+    }
+
+    static async Task UncheckTaskInMicrosoftToDoAsync(string taskTitle, string listName)
     {
-        Arity = ArgumentArity.ZeroOrOne
-    };
-    addCommand.AddOption(remindOption);
+        var graphClient = await Auth.LoginUserAsync(authInformation!);
 
-    var fileOption = new Option<FileInfo>("--file")
+        var queryOptions = new QueryOption("Filter", $"status eq 'completed' and title eq '{taskTitle}'");
+
+        var todoTasks = await graphClient.Me.Todo.Lists[listName].Tasks.Request(new List<QueryOption>{queryOptions}).GetAsync();
+
+        var taskToUncheck = todoTasks.FirstOrDefault();
+        if (taskToUncheck != null)
+        {
+            taskToUncheck.Status = TaskStatus.NotStarted;
+            await graphClient.Me.Todo.Lists[listName].Tasks[taskToUncheck.Id].Request().UpdateAsync(taskToUncheck);
+            Console.WriteLine($"Task '{taskTitle}' marked as not completed in list '{listName}'.");
+        }
+        else
+        {
+            Console.WriteLine($"Task '{taskTitle}' not found in list '{listName}'.");
+        }
+    }
+
+    static async Task DeleteTaskFromMicrosoftToDoAsync(string taskTitle, string listName)
     {
-        Arity = ArgumentArity.ZeroOrMore
-    };
-    addCommand.AddOption(fileOption);
+        var graphClient = await Auth.LoginUserAsync(authInformation!);
 
-    addCommand.SetHandler(async (string name, string date, string notes, bool addToMyDay, 
-        string remindOption, string? fileOption) =>
+        var queryOptions = new QueryOption("Filter", $"title eq '{taskTitle}'");
+
+        var todoTasks = await graphClient.Me.Todo.Lists[listName].Tasks.Request(new List<QueryOption>{queryOptions}).GetAsync();
+
+        var taskToDelete = todoTasks.FirstOrDefault();
+        if (taskToDelete != null)
+        {
+            await graphClient.Me.Todo.Lists[listName].Tasks[taskToDelete.Id].Request().DeleteAsync();
+            Console.WriteLine($"Task '{taskTitle}' deleted successfully from list '{listName}'.");
+        }
+        else
+        {
+            Console.WriteLine($"Task '{taskTitle}' not found in list '{listName}'.");
+        }
+    }
+
+    static async Task PerformListOperationsAsync(string listName, string command)
     {
-        //await api.AddTask(name, "Task");
-    },
-    taskTitleArgument, dateOption, notesOption, addToMyDayOption, remindOption, fileOption);
-    command.Add(addCommand);
-}
-
-static void SetupDeleteCommand(Command rootCommand)
-{
-    var deleteCommand = new Command("delete", "Delete task");
-
-    var taskNameArgument = new Argument<string>("task name", "Name of the task.");
-    deleteCommand.AddArgument(taskNameArgument);
-
-    deleteCommand.SetHandler(async (String name) =>
-    {
-        //await api.DeleteTask(name, "Task");
-    },
-    taskNameArgument);
-
-    rootCommand.Add(deleteCommand);
-}
-
-static void SetupCheckTaskCommand(Command rootCommand)
-{
-    var checkCommand = new Command("check", "Marks task as finished");
-    rootCommand.Add(checkCommand);
-}
-
-static void SetupUncheckTaskCommand(Command rootCommand)
-{
-    var unCheckCommand = new Command("uncheck", "Marks task as unfinished");
-    rootCommand.Add(unCheckCommand);
+        switch (command)
+        {
+            case "add":
+                Console.WriteLine("Please provide a task to add.");
+                break;
+            case "check":
+                Console.WriteLine("Please provide a task to check.");
+                break;
+            case "uncheck":
+                Console.WriteLine("Please provide a task to uncheck.");
+                break;
+            case "delete":
+                Console.WriteLine("Please provide a task to delete.");
+                break;
+            default:
+                Console.WriteLine("Invalid command.");
+                break;
+        }
+    }
 }

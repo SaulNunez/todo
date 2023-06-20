@@ -106,7 +106,7 @@ public static class Auth
         }
         catch (MsalUiRequiredException ex)
         {
-            return await Login(config, LoginMethod.Redirect);
+            return await Login(config, LoginMethod.Code);
         }
 
         return authResult.AccessToken;
