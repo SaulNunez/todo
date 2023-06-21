@@ -3,6 +3,7 @@ using Microsoft.Graph;
 using System.CommandLine;
 using Microsoft.Extensions.Configuration;
 using TaskStatus = Microsoft.Graph.TaskStatus;
+using Option = System.CommandLine.Option;
 
 class Program
 {
@@ -58,12 +59,14 @@ class Program
         var listCommand = new Command("list", "Perform operations on a specific list in Microsoft To-Do");
         var listNameArgument = new Argument<string>("listName", () => "Tasks", "Name of the list");
         listCommand.Add(listNameArgument);
+        var listHiddenOption = new Option<bool>("--show-completed", () => false, "Show completed tasks in list");
+        listCommand.Add(listHiddenOption);
 
-        listCommand.SetHandler<string>(async (listName) =>
+        listCommand.SetHandler<string, bool>(async (listName, showCheckedTasks) =>
         {
             // Perform operations on the specified list
-            await ListTasksInMicrosoftToDoAsync(listName);
-        }, listNameArgument);
+            await ListTasksInMicrosoftToDoAsync(listName, showCheckedTasks);
+        }, listNameArgument, listHiddenOption);
         rootCommand.Add(listCommand);
 
         return await rootCommand.InvokeAsync(args);
@@ -144,17 +147,33 @@ class Program
         }
     }
 
-    static async Task ListTasksInMicrosoftToDoAsync(string listName)
+    static async Task ListTasksInMicrosoftToDoAsync(string listName, bool showCheckedTasks)
     {
         var graphClient = await Auth.LoginUserAsync(authInformation!);
 
-        var tasks = await graphClient.Me.Todo.Lists[listName].Tasks.Request().GetAsync();
+        var uncheckedTasks = await graphClient.Me.Todo.Lists[listName].Tasks
+        .Request()
+        .Filter("status ne 'completed'")
+        .GetAsync();
+
+        var checkedTasks = await graphClient.Me.Todo.Lists[listName].Tasks
+            .Request()
+            .Filter("status eq 'completed'")
+            .GetAsync();
+        
+
         Console.WriteLine($"Tasks in list '{listName}':");
 
-        foreach (var task in tasks)
+        foreach (var task in uncheckedTasks)
         {
-            var check = task.Status.GetValueOrDefault() == TaskStatus.Completed? "x" : " ";
-            Console.WriteLine($"[{check}] {task.Title}");
+            Console.WriteLine($"[ ] {task.Title}");
+        }
+
+        if(showCheckedTasks){
+                foreach (var task in checkedTasks)
+                {
+                    Console.WriteLine($"[x] {task.Title}");
+                }
         }
     }
 
