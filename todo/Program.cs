@@ -55,15 +55,16 @@ class Program
         }, deleteTaskArgument);
         rootCommand.Add(deleteCommand);
 
-        var listCommand = new Command("list", "Perform operations on a specific list in Microsoft To-Do")
-            {
-                new Argument<string>("listName", "Name of the list")
-            };
-        /*listCommand.SetHandler<string>(async (listName, command) =>
+        var listCommand = new Command("list", "Perform operations on a specific list in Microsoft To-Do");
+        var listNameArgument = new Argument<string>("listName", () => "Tasks", "Name of the list");
+        listCommand.Add(listNameArgument);
+
+        listCommand.SetHandler<string>(async (listName) =>
         {
             // Perform operations on the specified list
-            await PerformListOperationsAsync(listName, command);
-        });*/
+            await ListTasksInMicrosoftToDoAsync(listName);
+        }, listNameArgument);
+        rootCommand.Add(listCommand);
 
         return await rootCommand.InvokeAsync(args);
     }
@@ -140,6 +141,20 @@ class Program
         else
         {
             Console.WriteLine($"Task '{taskTitle}' not found in list '{listName}'.");
+        }
+    }
+
+    static async Task ListTasksInMicrosoftToDoAsync(string listName)
+    {
+        var graphClient = await Auth.LoginUserAsync(authInformation!);
+
+        var tasks = await graphClient.Me.Todo.Lists[listName].Tasks.Request().GetAsync();
+        Console.WriteLine($"Tasks in list '{listName}':");
+
+        foreach (var task in tasks)
+        {
+            var check = task.Status.GetValueOrDefault() == TaskStatus.Completed? "x" : " ";
+            Console.WriteLine($"[{check}] {task.Title}");
         }
     }
 
