@@ -69,6 +69,12 @@ class Program
         }, listNameArgument, listHiddenOption);
         rootCommand.Add(listCommand);
 
+        var showListsCommand = new Command("lists", "List all lists in Microsoft To-Do");
+        showListsCommand.SetHandler(async () => {
+            await ListAllListsInMicrosoftToDoAsync();
+        });
+        rootCommand.Add(showListsCommand);
+
         return await rootCommand.InvokeAsync(args);
     }
 
@@ -174,6 +180,19 @@ class Program
                 {
                     Console.WriteLine($"[x] {task.Title}");
                 }
+        }
+    }
+
+    static async Task ListAllListsInMicrosoftToDoAsync()
+    {
+        var graphClient = await Auth.LoginUserAsync(authInformation!);
+
+        var lists = await graphClient.Me.Todo.Lists.Request().GetAsync();
+        Console.WriteLine("Lists in Microsoft To-Do:");
+
+        foreach (var list in lists)
+        {
+            Console.WriteLine($"- {list.DisplayName}");
         }
     }
 
