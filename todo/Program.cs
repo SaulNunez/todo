@@ -22,11 +22,21 @@ class Program
         var addCommand = new Command("add", "Create a task in Microsoft To-Do");
         var addTaskNameArgument = new Argument<string>("task", "Task description");
         addCommand.Add(addTaskNameArgument);
+        var dueDateOption = new Option<DateTime>("--due-date", "A due date for task.");
+        addCommand.Add(dueDateOption);
 
-        addCommand.SetHandler<string>(async (task) =>
+        var alertDateOption = new Option<DateTime>("--reminder", "At this time an alert will be sent to remind you of this task.");
+
+        var notesOption = new Option<string>("--notes", "A small section where you can add whatever");
+
+        var attachments = new Option<FileInfo>("--file", "Attachments to be added to task");
+
+        var step = new Option<string>("--step", "Steps to complete this task. Or extra things that need to be done.");
+
+        addCommand.SetHandler<string, DateTime>(async (task, alertDate) =>
         {
-            await AddTaskToMicrosoftToDoAsync(task, "Tasks");
-        }, addTaskNameArgument);
+            await AddTaskToMicrosoftToDoAsync(task, "Tasks", alertDate);
+        }, addTaskNameArgument, dueDateOption);
         rootCommand.Add(addCommand);
 
         var checkCommand = new Command("check", "Mark a task as done in Microsoft To-Do");
@@ -78,13 +88,14 @@ class Program
         return await rootCommand.InvokeAsync(args);
     }
 
-    static async Task AddTaskToMicrosoftToDoAsync(string task, string listName)
+    static async Task AddTaskToMicrosoftToDoAsync(string task, string listName, DateTime dueDate)
     {
         var graphClient = await Auth.LoginUserAsync(authInformation!);
 
         var todoTask = new TodoTask
         {
-            Title = task
+            Title = task,
+            DueDateTime = DateTimeTimeZone.FromDateTime(dueDate),
         };
 
         await graphClient.Me.Todo.Lists[listName].Tasks.Request().AddAsync(todoTask);
