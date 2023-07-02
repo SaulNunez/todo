@@ -29,15 +29,16 @@ class Program
         addCommand.Add(remindDateOption);
 
         var notesOption = new Option<string>("--notes", "A small section where you can add whatever");
+        addCommand.Add(notesOption);
 
         var attachments = new Option<FileInfo>("--file", "Attachments to be added to task");
 
         var step = new Option<string>("--step", "Steps to complete this task. Or extra things that need to be done.");
 
-        addCommand.SetHandler<string, DateTime, DateTime>(async (task, dueDate, remindDate) =>
+        addCommand.SetHandler<string, DateTime, DateTime, string>(async (task, dueDate, remindDate, notes) =>
         {
-            await AddTaskToMicrosoftToDoAsync(task, "Tasks", dueDate, remindDate);
-        }, addTaskNameArgument, dueDateOption, remindDateOption);
+            await AddTaskToMicrosoftToDoAsync(task, "Tasks", dueDate, remindDate, notes);
+        }, addTaskNameArgument, dueDateOption, remindDateOption, notesOption);
         rootCommand.Add(addCommand);
 
         var checkCommand = new Command("check", "Mark a task as done in Microsoft To-Do");
@@ -89,7 +90,8 @@ class Program
         return await rootCommand.InvokeAsync(args);
     }
 
-    static async Task AddTaskToMicrosoftToDoAsync(string task, string listName, DateTime dueDate = default, DateTime reminderDate = default)
+    static async Task AddTaskToMicrosoftToDoAsync(string task, string listName, DateTime dueDate = default, 
+        DateTime reminderDate = default, string? notes = null)
     {
         var graphClient = await Auth.LoginUserAsync(authInformation!);
 
@@ -104,6 +106,13 @@ class Program
 
         if(reminderDate != default(DateTime)){
             todoTask.ReminderDateTime = DateTimeTimeZone.FromDateTime(reminderDate!);
+        }
+
+        if(notes != null || notes == string.Empty){
+            todoTask.Body = new ItemBody{
+                Content = notes,
+                ContentType = BodyType.Text
+            };
         }
 
         await graphClient.Me.Todo.Lists[listName].Tasks.Request().AddAsync(todoTask);
