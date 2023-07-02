@@ -25,7 +25,8 @@ class Program
         var dueDateOption = new Option<DateTime>("--due-date", "A due date for task.");
         addCommand.Add(dueDateOption);
 
-        var alertDateOption = new Option<DateTime>("--reminder", "At this time an alert will be sent to remind you of this task.");
+        var remindDateOption = new Option<DateTime>("--reminder", "At this time an alert will be sent to remind you of this task.");
+        addCommand.Add(remindDateOption);
 
         var notesOption = new Option<string>("--notes", "A small section where you can add whatever");
 
@@ -33,10 +34,10 @@ class Program
 
         var step = new Option<string>("--step", "Steps to complete this task. Or extra things that need to be done.");
 
-        addCommand.SetHandler<string, DateTime>(async (task, alertDate) =>
+        addCommand.SetHandler<string, DateTime, DateTime>(async (task, dueDate, remindDate) =>
         {
-            await AddTaskToMicrosoftToDoAsync(task, "Tasks", alertDate);
-        }, addTaskNameArgument, dueDateOption);
+            await AddTaskToMicrosoftToDoAsync(task, "Tasks", dueDate, remindDate);
+        }, addTaskNameArgument, dueDateOption, remindDateOption);
         rootCommand.Add(addCommand);
 
         var checkCommand = new Command("check", "Mark a task as done in Microsoft To-Do");
@@ -88,15 +89,22 @@ class Program
         return await rootCommand.InvokeAsync(args);
     }
 
-    static async Task AddTaskToMicrosoftToDoAsync(string task, string listName, DateTime dueDate)
+    static async Task AddTaskToMicrosoftToDoAsync(string task, string listName, DateTime dueDate = default, DateTime reminderDate = default)
     {
         var graphClient = await Auth.LoginUserAsync(authInformation!);
 
         var todoTask = new TodoTask
         {
             Title = task,
-            DueDateTime = DateTimeTimeZone.FromDateTime(dueDate),
         };
+
+        if(dueDate != default(DateTime)){
+            todoTask.DueDateTime = DateTimeTimeZone.FromDateTime(dueDate!);
+        }
+
+        if(reminderDate != default(DateTime)){
+            todoTask.ReminderDateTime = DateTimeTimeZone.FromDateTime(reminderDate!);
+        }
 
         await graphClient.Me.Todo.Lists[listName].Tasks.Request().AddAsync(todoTask);
         Console.WriteLine($"Task '{task}' added to list '{listName}'.");
