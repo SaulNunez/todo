@@ -42,7 +42,7 @@ class Program
         addCommand.SetHandler(async (task, dueDate, remindDate, attachments, notes) =>
         {
             var newTask = await todoActions.CreateTask(task, "Tasks", dueDate, remindDate, attachments, notes);
-            PrettyPrint.Print(await newTask);
+            PrettyPrint.Print(newTask);
         }, taskTitleArgument, dueDateOption, remindDateOption, attachmentOption, notesOption);
         rootCommand.Add(addCommand);
 #pragma endregion AddCommand
@@ -54,7 +54,7 @@ class Program
         checkCommand.SetHandler<string>(async (task) =>
         {
             var editedTask = await todoActions.EditTask(task, "Tasks", status:Microsoft.Graph.Models.TaskStatus.Completed);
-            PrettyPrint.Print(await await editedTask);
+            PrettyPrint.Print(editedTask);
         }, checkTaskArgument);
         rootCommand.Add(checkCommand);
 #pragma endregion CheckCommand
@@ -66,7 +66,7 @@ class Program
         uncheckCommand.SetHandler<string>(async (task) =>
         {
             var editedTask = await todoActions.EditTask(task, "Tasks", status:Microsoft.Graph.Models.TaskStatus.NotStarted);
-            PrettyPrint.Print(await await editedTask);
+            PrettyPrint.Print(editedTask);
         }, uncheckTaskArgument);
         rootCommand.Add(uncheckCommand);
 #pragma endregion UncheckCommand
@@ -93,7 +93,7 @@ class Program
         {
             // Perform operations on the specified list
             var listOfTasks = await todoActions.GetTasksInList(listName);
-            PrettyPrint.Print(await listOfTasks);
+            PrettyPrint.Print(listOfTasks);
         }, listNameArgument, listHiddenOption);
         rootCommand.Add(tasksCommand);
 #pragma endregion TasksInListCommand
@@ -129,28 +129,28 @@ class Program
         var mydayCommand = new Command("myday", "Show tasks in My Day list.");
         mydayCommand.SetHandler(async () => {
             var listOfTasks = await todoActions.GetTasksInList("My Day");
-            PrettyPrint.Print(await listOfTasks);
+            PrettyPrint.Print(listOfTasks);
         });
         rootCommand.Add(mydayCommand);
 
         var importantComand = new Command("important", "Show tasks in Important list.");
         importantComand.SetHandler(async () => {
             var listOfTasks = await todoActions.GetTasksInList("Important");
-            PrettyPrint.Print(await listOfTasks);
+            PrettyPrint.Print(listOfTasks);
         });
         rootCommand.Add(importantComand);
 
         var plannedCommand = new Command("planned", "Show tasks in Planned list.");
         plannedCommand.SetHandler(async () => {
             var listOfTasks = await todoActions.GetTasksInList("Planned");
-            PrettyPrint.Print(await listOfTasks);
+            PrettyPrint.Print(listOfTasks);
         });
         rootCommand.Add(plannedCommand);
 
         var assignedCommand = new Command("assigned", "Show tasks in Assigned list.");
         assignedCommand.SetHandler(async () => {
             var listOfTasks = await todoActions.GetTasksInList("Assigned");
-            PrettyPrint.Print(await listOfTasks);
+            PrettyPrint.Print(listOfTasks);
         });
         rootCommand.Add(assignedCommand);
 

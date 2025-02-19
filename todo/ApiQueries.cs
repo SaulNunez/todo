@@ -40,7 +40,7 @@ public class ApiQueries
         return await graphClient.Me.Todo.Lists[listId].Tasks.GetAsync();
     }
 
-    public async Task<Task<TodoTask?>> EditTask(string taskId, string listId, string? newTitle = null, 
+    public async Task<TodoTask?> EditTask(string taskId, string listId, string? newTitle = null, 
         DateTimeTimeZone? reminder = null, DateTimeTimeZone? dueDate = null, 
         List<FileInfo>? fileUri = null,  TaskStatus? status = null, string? notes = null )
     {
@@ -72,7 +72,7 @@ public class ApiQueries
         //    DisplayName = ck
         //});
 
-        return graphClient.Me.Todo.Lists[listId]
+        return await graphClient.Me.Todo.Lists[listId]
             .Tasks[taskId]
             .PatchAsync(existingTask);
     }

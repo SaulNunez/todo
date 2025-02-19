@@ -9,14 +9,11 @@ namespace todo;
 /// Does convertion of data types before calling the API wrapper.
 /// Will also handle error conditions due to wrong parameters.
 /// </summary>
-public class TodoActions{
-    private ApiQueries api;
+public class TodoActions(ApiQueries api)
+{
+    private readonly ApiQueries api = api;
 
-    public TodoActions(ApiQueries api){
-        this.api = api;
-    }
-
-    public async Task<Task> DeleteTask(string listName, string taskTitle)
+    public async Task DeleteTask(string listName, string taskTitle)
     {
         var listId = await api.GetListId(listName);
 
@@ -32,10 +29,10 @@ public class TodoActions{
 
         }
 
-        return api.DeleteTask(listId!, taskId!);
+        await api.DeleteTask(listId!, taskId!);
     }
 
-    public async Task<Task<TodoTask?>> CreateTask(string title, string listName, DateTime? dueDate = null,
+    public async Task<TodoTask?> CreateTask(string title, string listName, DateTime? dueDate = null,
         DateTime? reminder = null, List<FileInfo>? fileUri = null, string? notes = "")
     {
         var listId = await api.GetListId(listName);
@@ -51,10 +48,10 @@ public class TodoActions{
         };
         // Microsoft graph asks for a time with a timezone, will be using system timezone
         //var reminderDateTimeZone = reminder.
-        return api.CreateTask(title, listId, reminderDateTimeTimeZone, dueDateTimeTimeZone, fileUri, notes);
+        return await api.CreateTask(title, listId, reminderDateTimeTimeZone, dueDateTimeTimeZone, fileUri, notes);
     }
 
-    public async Task<Task<Task<TodoTask?>>> EditTask(string originalTitle, string listName, string? newTitle = null,
+    public async Task<TodoTask?> EditTask(string originalTitle, string listName, string? newTitle = null,
     TaskStatus? status = null, DateTime? dueDate = null, DateTime? reminder = null, 
     List<FileInfo>? fileUri = null, string? notes = "")
     {
@@ -69,7 +66,7 @@ public class TodoActions{
             DateTime = reminder?.ToString("yyyy-MM-ddTHH:mm:ss", CultureInfo.InvariantCulture),
             TimeZone = TimeZoneInfo.Local.StandardName
         };
-        return api.EditTask(originalTitle, newTitle, listId, reminderDateTimeTimeZone, dueDateTimeTimeZone, fileUri, status, notes);
+        return await api.EditTask(originalTitle, newTitle, listId, reminderDateTimeTimeZone, dueDateTimeTimeZone, fileUri, status, notes);
     }
 
     public Task<Microsoft.Graph.Models.TodoTaskListCollectionResponse?> GetAllLists(){
@@ -80,15 +77,15 @@ public class TodoActions{
         return api.AddTaskList(listName);
     }
 
-    public async Task<Task> DeleteList(string listName){
+    public async Task DeleteList(string listName){
         var listId = await api.GetListId(listName);
         
-        return api.DeleteTaskList(listId);
+        await api.DeleteTaskList(listId);
     }
 
-    public async Task<Task<Microsoft.Graph.Models.TodoTaskCollectionResponse?>> GetTasksInList(string listName){
+    public async Task<Microsoft.Graph.Models.TodoTaskCollectionResponse?> GetTasksInList(string listName){
         var listId = await api.GetListId(listName);
 
-        return api.GetTasksInList(listId);
+        return await api.GetTasksInList(listId);
     }
 }
