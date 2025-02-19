@@ -24,4 +24,12 @@ public static class PrettyPrint{
             IndividualTaskItem(task);
         }
     }
+
+    public static void Print(TodoTaskListCollectionResponse listCollectionResponse)
+    {
+        foreach(var list in listCollectionResponse.Value)
+        {
+            Console.WriteLine(list.DisplayName);
+        }
+    }
 }

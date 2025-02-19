@@ -101,7 +101,8 @@ class Program
 #pragma region ListCommand
         var showListsCommand = new Command("lists", "Show all lists.");
         showListsCommand.SetHandler(async () => {
-            await todoActions.GetAllLists();
+            var lists = await todoActions.GetAllLists();
+            PrettyPrint.Print(lists);
         });
         rootCommand.Add(showListsCommand);
 
