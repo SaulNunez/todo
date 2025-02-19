@@ -41,7 +41,8 @@ class Program
 
         addCommand.SetHandler(async (task, dueDate, remindDate, attachments, notes) =>
         {
-            await todoActions.CreateTask(task, "Tasks", dueDate, remindDate, attachments, notes);
+            var newTask = await todoActions.CreateTask(task, "Tasks", dueDate, remindDate, attachments, notes);
+            PrettyPrint.Print(await newTask);
         }, taskTitleArgument, dueDateOption, remindDateOption, attachmentOption, notesOption);
         rootCommand.Add(addCommand);
 #pragma endregion AddCommand
@@ -52,7 +53,8 @@ class Program
         checkCommand.Add(checkTaskArgument);
         checkCommand.SetHandler<string>(async (task) =>
         {
-            await todoActions.EditTask(task, "Tasks", status:Microsoft.Graph.Models.TaskStatus.Completed);
+            var editedTask = await todoActions.EditTask(task, "Tasks", status:Microsoft.Graph.Models.TaskStatus.Completed);
+            PrettyPrint.Print(await await editedTask);
         }, checkTaskArgument);
         rootCommand.Add(checkCommand);
 #pragma endregion CheckCommand
@@ -63,7 +65,8 @@ class Program
         uncheckCommand.Add(uncheckTaskArgument);
         uncheckCommand.SetHandler<string>(async (task) =>
         {
-            await todoActions.EditTask(task, "Tasks", status:Microsoft.Graph.Models.TaskStatus.NotStarted);
+            var editedTask = await todoActions.EditTask(task, "Tasks", status:Microsoft.Graph.Models.TaskStatus.NotStarted);
+            PrettyPrint.Print(await await editedTask);
         }, uncheckTaskArgument);
         rootCommand.Add(uncheckCommand);
 #pragma endregion UncheckCommand
@@ -89,7 +92,8 @@ class Program
         tasksCommand.SetHandler<string, bool>(async (listName, showCheckedTasks) =>
         {
             // Perform operations on the specified list
-            await todoActions.GetTasksInList(listName);
+            var listOfTasks = await todoActions.GetTasksInList(listName);
+            PrettyPrint.Print(await listOfTasks);
         }, listNameArgument, listHiddenOption);
         rootCommand.Add(tasksCommand);
 #pragma endregion TasksInListCommand
@@ -124,25 +128,29 @@ class Program
 #pragma region Aliases
         var mydayCommand = new Command("myday", "Show tasks in My Day list.");
         mydayCommand.SetHandler(async () => {
-            await todoActions.GetTasksInList("My Day");
+            var listOfTasks = await todoActions.GetTasksInList("My Day");
+            PrettyPrint.Print(await listOfTasks);
         });
         rootCommand.Add(mydayCommand);
 
         var importantComand = new Command("important", "Show tasks in Important list.");
         importantComand.SetHandler(async () => {
-            await todoActions.GetTasksInList("Important");
+            var listOfTasks = await todoActions.GetTasksInList("Important");
+            PrettyPrint.Print(await listOfTasks);
         });
         rootCommand.Add(importantComand);
 
         var plannedCommand = new Command("planned", "Show tasks in Planned list.");
         plannedCommand.SetHandler(async () => {
-            await todoActions.GetTasksInList("Planned");
+            var listOfTasks = await todoActions.GetTasksInList("Planned");
+            PrettyPrint.Print(await listOfTasks);
         });
         rootCommand.Add(plannedCommand);
 
         var assignedCommand = new Command("assigned", "Show tasks in Assigned list.");
         assignedCommand.SetHandler(async () => {
-            await todoActions.GetTasksInList("Assigned");
+            var listOfTasks = await todoActions.GetTasksInList("Assigned");
+            PrettyPrint.Print(await listOfTasks);
         });
         rootCommand.Add(assignedCommand);
 
