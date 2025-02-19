@@ -6,16 +6,34 @@ description: |
   An unofficial CLI app to handle your Microsoft ToDo tasks.
   Organize your life and create, delete, update your tasks from the confort 
   of the terminal or do some cool automation cron job.
+
 grade: devel
 confinement: devmode
+
+architectures:
+  - build-on: amd64
+  - build-on: arm64
 
 parts:
   todo:
     source: .
     plugin: dotnet
+    dotnet-build-configuration: Release
+    dotnet-self-contained-runtime-identifier: linux-x64
+    build-snaps:
+      - dotnet-sdk-8.0
+    stage-snaps:
+      - dotnet-runtime-8.0
+  appsettings:
+    plugin: dump
+    source: src/
+    prime:
+      - appsettings.json
 
 apps:
   todo:
     command: todo
+    plugs:
+      - network
 
   

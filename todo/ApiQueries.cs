@@ -1,7 +1,13 @@
 ﻿using Microsoft.Graph;
+using Microsoft.Graph.Models;
+using TaskStatus = Microsoft.Graph.Models.TaskStatus;
 
 namespace todo;
 
+/// <summary>
+/// A thin wrapper over the Microsoft Graph library.
+/// Creates objects needed for calling the API, like the parameter body.
+/// </summary>
 public class ApiQueries
 {
     public readonly GraphServiceClient graphClient;
@@ -11,132 +17,105 @@ public class ApiQueries
         this.graphClient = graphClient;
     }
 
-    Task DeleteTask(string listId, string taskId)
+    public Task DeleteTask(string listId, string taskId)
     {
-        return graphClient.Me.Todo.Lists[listId].Tasks[taskId]
-            .Request()
-            .DeleteAsync();
+        return graphClient.Me.Todo.Lists[listId].Tasks[taskId].DeleteAsync();
     }
 
-    public async Task DeleteByName(string listName, string taskTitle)
-    {
-        var listId = await GetListId(listName);
-
-        if (listId == null)
-        {
-
-        }
-
-        var taskId = await GetTaskId(taskTitle, listId!);
-
-        if(taskId == null)
-        {
-
-        }
-
-        await DeleteTask(listId!, taskId!);
-    }
-
-    async Task<string?> GetListId(string name)
+    public async Task<string?> GetListId(string name)
     {
         var lists = await GetAvailableLists();
-        var listOfName = lists.FirstOrDefault(l => l.DisplayName == name.Trim());
+        var listOfName = lists.Value.FirstOrDefault(l => l.DisplayName == name.Trim());
         return listOfName?.Id;
     }
 
-    async Task<string?> GetTaskId(string taskTitle, string listId)
+    public async Task<string?> GetTaskId(string taskTitle, string listId)
     {
-        var taskInList = await GetListAsync(listId);
-        return taskInList.FirstOrDefault(t => t.Title == taskTitle)?.Id;
+        var taskInList = await GetTasksInList(listId);
+        return taskInList.Value.FirstOrDefault(t => t.Title == taskTitle)?.Id;
     }
 
-    async Task<ITodoTaskListTasksCollectionPage> GetTasksInList(string listId)
+    public async Task<TodoTaskCollectionResponse?> GetTasksInList(string listId)
     {
-        var tasks = await graphClient.Me.Todo.Lists[listId].Tasks
-            .Request()
-            .GetAsync();
-
-        return tasks;
+        return await graphClient.Me.Todo.Lists[listId].Tasks.GetAsync();
     }
 
-    public async Task<TodoTask> CreateTask(string title, string listName, List<string>? fileUri = null, 
-        List<string>? checkListItems = null, string? notes = "", bool? remind = false)
+    public async Task<Task<TodoTask?>> EditTask(string taskId, string listId, string? newTitle = null, 
+        DateTimeTimeZone? reminder = null, DateTimeTimeZone? dueDate = null, 
+        List<FileInfo>? fileUri = null,  TaskStatus? status = null, string? notes = null )
     {
-        var newTask = new TodoTask();
-        newTask.Title = title;
-        newTask.Body = new ItemBody
-        {
-            Content = notes
-        };
+        var existingTask = await graphClient.Me.Todo.Lists[listId].Tasks[taskId].GetAsync() ?? throw new Exception("No task found");
+        if (newTitle != null){
+            existingTask.Title = newTitle;
+        }
+        if(notes != null){
+            existingTask.Body = new ItemBody
+            {
+                Content = notes
+            };
+        }
 
-        var listId = await GetListId(listName);
+        if(reminder != null){
+            existingTask.ReminderDateTime = reminder;
+        }
+
+        if(dueDate != null){
+            existingTask.DueDateTime = dueDate;
+        }
+
+        if(status != null){
+            existingTask.Status = status;
+        }
 
         //var checkListItemsForApi = checkListItems?.Select(ck => new ChecklistItem
         //{
         //    DisplayName = ck
         //});
 
-        return await graphClient.Me.Todo.Lists[listId].Tasks
-            .Request()
-            .AddAsync(newTask);
+        return graphClient.Me.Todo.Lists[listId]
+            .Tasks[taskId]
+            .PatchAsync(existingTask);
     }
 
-    Task<ITodoTaskListTasksCollectionPage> GetListAsyncById(string listId)
+    public Task<TodoTask?> CreateTask(string title, string listId, DateTimeTimeZone? reminder = null,
+    DateTimeTimeZone? dueDate = null, List<FileInfo>? fileUri = null, string? notes = "")
     {
-        var tasks = graphClient.Me.Todo.Lists[listId].Tasks
-        .Request()
-        .GetAsync();
+        var newTask = new TodoTask
+        {
+            Title = title,
+            Body = new ItemBody
+            {
+                Content = notes
+            },
+            ReminderDateTime = reminder,
+            DueDateTime = dueDate,
+        };
 
-        return tasks; 
+        //var checkListItemsForApi = checkListItems?.Select(ck => new ChecklistItem
+        //{
+        //    DisplayName = ck
+        //});
+
+        return graphClient.Me.Todo.Lists[listId].Tasks.PostAsync(newTask);
     }
 
-    public async Task<ITodoTaskListTasksCollectionPage> GetListAsync(string listName)
+    public Task<TodoTaskListCollectionResponse?> GetAvailableLists()
     {
-        var listId = await GetListId(listName);
-        return await GetListAsyncById(listId);
+        return graphClient.Me.Todo.Lists.GetAsync();
     }
 
-    public Task<ITodoListsCollectionPage> GetAvailableLists()
+    public Task<TodoTaskList?> AddTaskList(string name)
     {
-        var lists = graphClient.Me.Todo.Lists
-        .Request()
-        .GetAsync();
-
-        return lists;
-    }
-
-    public async Task AddTaskList(string name)
-    {
-        var todoTaskList = new TodoTaskList
+        var requestBody = new TodoTaskList
         {
             DisplayName = name
         };
 
-        await graphClient.Me.Todo.Lists
-            .Request()
-            .AddAsync(todoTaskList);
+        return graphClient.Me.Todo.Lists.PostAsync(requestBody);
     }
 
-    public async Task DeleteTaskListByName(string name)
+    public Task DeleteTaskList(string taskListId)
     {
-        var id = await GetListId(name);
-        if(id == null)
-        {
-
-        }
-
-        await DeleteTaskList(id!);
-    }
-
-    Task DeleteTaskList(string taskListId)
-    {
-        return graphClient.Me.Todo.Lists[taskListId]
-            .Request()
-            .DeleteAsync();
-    }
-
-    internal Task CheckTask(string listName, string taskName)
-    {
-        throw new NotImplementedException();
+        return graphClient.Me.Todo.Lists[taskListId].DeleteAsync();
     }
 }
