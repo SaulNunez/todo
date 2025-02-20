@@ -36,16 +36,16 @@ public class TodoActions(ApiQueries api)
         DateTime? reminder = null, List<FileInfo>? fileUri = null, string? notes = "")
     {
         var listId = await api.GetListId(listName);
-        var dueDateTimeTimeZone = new DateTimeTimeZone
+        var dueDateTimeTimeZone = dueDate != null ? new DateTimeTimeZone
         {
             DateTime = dueDate?.ToString("yyyy-MM-ddTHH:mm:ss", CultureInfo.InvariantCulture),
             TimeZone = TimeZoneInfo.Local.StandardName
-        };
-        var reminderDateTimeTimeZone = new DateTimeTimeZone
+        } : null;
+        var reminderDateTimeTimeZone = reminder != null ? new DateTimeTimeZone
         {
             DateTime = reminder?.ToString("yyyy-MM-ddTHH:mm:ss", CultureInfo.InvariantCulture),
             TimeZone = TimeZoneInfo.Local.StandardName
-        };
+        } : null;
         // Microsoft graph asks for a time with a timezone, will be using system timezone
         //var reminderDateTimeZone = reminder.
         return await api.CreateTask(title, listId, reminderDateTimeTimeZone, dueDateTimeTimeZone, fileUri, notes);
@@ -56,17 +56,18 @@ public class TodoActions(ApiQueries api)
     List<FileInfo>? fileUri = null, string? notes = "")
     {
         var listId = await api.GetListId(listName);
-        var dueDateTimeTimeZone = new DateTimeTimeZone
+        var taskId = await api.GetTaskId(originalTitle, listId!);
+        var dueDateTimeTimeZone = dueDate != null ?new DateTimeTimeZone
         {
             DateTime = dueDate?.ToString("yyyy-MM-ddTHH:mm:ss", CultureInfo.InvariantCulture),
             TimeZone = TimeZoneInfo.Local.StandardName
-        };
-        var reminderDateTimeTimeZone = new DateTimeTimeZone
+        } : null;
+        var reminderDateTimeTimeZone = reminder != null ? new DateTimeTimeZone
         {
             DateTime = reminder?.ToString("yyyy-MM-ddTHH:mm:ss", CultureInfo.InvariantCulture),
             TimeZone = TimeZoneInfo.Local.StandardName
-        };
-        return await api.EditTask(originalTitle, newTitle, listId, reminderDateTimeTimeZone, dueDateTimeTimeZone, fileUri, status, notes);
+        } : null;
+        return await api.EditTask(taskId, listId, newTitle, reminderDateTimeTimeZone, dueDateTimeTimeZone, fileUri, status, notes);
     }
 
     public Task<Microsoft.Graph.Models.TodoTaskListCollectionResponse?> GetAllLists(){
