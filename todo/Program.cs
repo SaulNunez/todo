@@ -22,14 +22,30 @@ class Program
 
         var rootCommand = new RootCommand(description: "Unofficial CLI for To-Do.");
 
+#pragma region TasksInListCommand
+        var task = new Command("tasks", "Show tasks in list");
+        var listNameArgument = new Argument<string>("listName", "Name of the list");
+        task.Add(listNameArgument);
+        //var listHiddenOption = new Option<bool>("--show-completed", () => false, "Show completed tasks in list");
+        //tasksCommand.Add(listHiddenOption);
+
+        task.SetHandler<string>(async (listName) =>
+        {
+            // Perform operations on the specified list
+            var listOfTasks = await todoActions.GetTasksInList(listName);
+            PrettyPrint.Print(listOfTasks);
+        }, listNameArgument);
+        rootCommand.Add(task);
+#pragma endregion TasksInListCommand
+
 #pragma region AddCommand
         var addCommand = new Command("add", "Create a task.");
         var taskTitleArgument = new Argument<string>("task", "Task description");
         addCommand.Add(taskTitleArgument);
-        var dueDateOption = new Option<DateTime>("--due-date", "A due date for task.");
+        var dueDateOption = new Option<DateTime?>("--due-date", () => null, "A due date for task.");
         addCommand.Add(dueDateOption);
 
-        var remindDateOption = new Option<DateTime>("--reminder", "At this time an alert will be sent to remind you of this task. This alert will be shown by one of the official apps, either on desktop or on your phone.");
+        var remindDateOption = new Option<DateTime?>("--reminder-date", () => null, "At this time an alert will be sent to remind you of this task. This alert will be shown by one of the official apps, either on desktop or on your phone.");
         addCommand.Add(remindDateOption);
 
         var attachmentOption = new Option<List<FileInfo>>("--file", "Attachments to be added to task");
@@ -39,64 +55,48 @@ class Program
 
         //var checklist = new Option<string>("--checklist", "Steps to complete this task. Or extra things that need to be done.");
 
-        addCommand.SetHandler(async (task, dueDate, remindDate, attachments, notes) =>
+        addCommand.SetHandler(async (listName, task, dueDate, remindDate, attachments, notes) =>
         {
-            var newTask = await todoActions.CreateTask(task, "Tasks", dueDate, remindDate, attachments, notes);
+            var newTask = await todoActions.CreateTask(task, listName, dueDate, remindDate, attachments, notes);
             PrettyPrint.Print(newTask);
-        }, taskTitleArgument, dueDateOption, remindDateOption, attachmentOption, notesOption);
-        rootCommand.Add(addCommand);
+        }, listNameArgument, taskTitleArgument, dueDateOption, remindDateOption, attachmentOption, notesOption);
+        task.Add(addCommand);
 #pragma endregion AddCommand
 
 #pragma region CheckCommand
         var checkCommand = new Command("check", "Mark a task as done");
         var checkTaskArgument = new Argument<string>("task", "Task title.");
         checkCommand.Add(checkTaskArgument);
-        checkCommand.SetHandler<string>(async (task) =>
+        checkCommand.SetHandler(async (listName, task) =>
         {
-            var editedTask = await todoActions.EditTask(task, "Tasks", status:Microsoft.Graph.Models.TaskStatus.Completed);
+            var editedTask = await todoActions.EditTask(task, listName, status:Microsoft.Graph.Models.TaskStatus.Completed);
             PrettyPrint.Print(editedTask);
-        }, checkTaskArgument);
-        rootCommand.Add(checkCommand);
+        }, listNameArgument, checkTaskArgument);
+        task.Add(checkCommand);
 #pragma endregion CheckCommand
 
 #pragma region UncheckCommand
         var uncheckCommand = new Command("uncheck", "Mark a task as not done");
         var uncheckTaskArgument = new Argument<string>("task", "Task title.");
         uncheckCommand.Add(uncheckTaskArgument);
-        uncheckCommand.SetHandler<string>(async (task) =>
+        uncheckCommand.SetHandler(async (listName, task) =>
         {
-            var editedTask = await todoActions.EditTask(task, "Tasks", status:Microsoft.Graph.Models.TaskStatus.NotStarted);
+            var editedTask = await todoActions.EditTask(task, listName, status:Microsoft.Graph.Models.TaskStatus.NotStarted);
             PrettyPrint.Print(editedTask);
-        }, uncheckTaskArgument);
-        rootCommand.Add(uncheckCommand);
+        }, listNameArgument, uncheckTaskArgument);
+        task.Add(uncheckCommand);
 #pragma endregion UncheckCommand
 
 #pragma region DeleteCommand
         var deleteCommand = new Command("delete", "Delete a task");
         var deleteTaskArgument = new Argument<string>("task", "Task title.");
         deleteCommand.Add(deleteTaskArgument);
-        deleteCommand.SetHandler<string>(async (task) =>
+        deleteCommand.SetHandler(async (listName, task) =>
         {
-            await todoActions.DeleteTask("Tasks", task);
-        }, deleteTaskArgument);
-        rootCommand.Add(deleteCommand);
+            await todoActions.DeleteTask(listName, task);
+        }, listNameArgument, deleteTaskArgument);
+        task.Add(deleteCommand);
 #pragma endregion DeleteCommand
-
-#pragma region TasksInListCommand
-        var tasksCommand = new Command("tasks", "Show tasks in list");
-        var listNameArgument = new Argument<string>("listName", () => "Tasks", "Name of the list");
-        tasksCommand.Add(listNameArgument);
-        var listHiddenOption = new Option<bool>("--show-completed", () => false, "Show completed tasks in list");
-        tasksCommand.Add(listHiddenOption);
-
-        tasksCommand.SetHandler<string, bool>(async (listName, showCheckedTasks) =>
-        {
-            // Perform operations on the specified list
-            var listOfTasks = await todoActions.GetTasksInList(listName);
-            PrettyPrint.Print(listOfTasks);
-        }, listNameArgument, listHiddenOption);
-        rootCommand.Add(tasksCommand);
-#pragma endregion TasksInListCommand
 
 #pragma region ListCommand
         var showListsCommand = new Command("lists", "Show all lists.");
@@ -114,6 +114,7 @@ class Program
         createListCommand.SetHandler(async (listName) => {
             await todoActions.AddList(listName);
         }, addListNameArgument);
+        createListCommand.Add(addListNameArgument);
         showListsCommand.Add(createListCommand);
 #pragma endregion AddListCommand
 
@@ -123,39 +124,9 @@ class Program
         deleteListCommand.SetHandler(async (listName) => {
             await todoActions.DeleteList(listName);
         }, deleteListNameArgument);
+        deleteListCommand.Add(deleteListNameArgument);
         showListsCommand.Add(deleteListCommand);
 #pragma endregion DeleteListCommand
-
-#pragma region Aliases
-        var mydayCommand = new Command("myday", "Show tasks in My Day list.");
-        mydayCommand.SetHandler(async () => {
-            var listOfTasks = await todoActions.GetTasksInList("My Day");
-            PrettyPrint.Print(listOfTasks);
-        });
-        rootCommand.Add(mydayCommand);
-
-        var importantComand = new Command("important", "Show tasks in Important list.");
-        importantComand.SetHandler(async () => {
-            var listOfTasks = await todoActions.GetTasksInList("Important");
-            PrettyPrint.Print(listOfTasks);
-        });
-        rootCommand.Add(importantComand);
-
-        var plannedCommand = new Command("planned", "Show tasks in Planned list.");
-        plannedCommand.SetHandler(async () => {
-            var listOfTasks = await todoActions.GetTasksInList("Planned");
-            PrettyPrint.Print(listOfTasks);
-        });
-        rootCommand.Add(plannedCommand);
-
-        var assignedCommand = new Command("assigned", "Show tasks in Assigned list.");
-        assignedCommand.SetHandler(async () => {
-            var listOfTasks = await todoActions.GetTasksInList("Assigned");
-            PrettyPrint.Print(listOfTasks);
-        });
-        rootCommand.Add(assignedCommand);
-
-#pragma endregion Aliases
 
         return await rootCommand.InvokeAsync(args);
     }

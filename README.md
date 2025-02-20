@@ -22,43 +22,15 @@ Please check in the Release section of this repository.
 
 ## Setup
 
-## Tasks
-### Creating a task
-```bash
-todo add "Buy milk" --date "" --notes "" --add-to-my-day --remind --repeat weekly --checklist "" --checklist "" --file "" --file ""
-```
-
-### Marking completion
-```bash
-todo check "Buy milk"
-```
-Marks a task as completed.
-
-```bash
-todo uncheck "Buy milk"
-```
-Mark a task as not done.
-
-### Delete task
-```bash
-todo delete "Buy milk"
-```
-
-### Show all tasks
-```bash
-todo tasks
-```
-Todo without arguments will show tasks in the default list.
-
 ## Lists
 ### Create list
 ```bash
-todo list add "My cool project"
+todo lists add "My cool project"
 ```
 
 ### Delete list
 ```bash
-todo list delete "My cool project"
+todo lists delete "My cool project"
 ```
 
 ### Show all lists
@@ -66,21 +38,29 @@ todo list delete "My cool project"
 todo lists
 ```
 
-### Aliases
-Rather than typing `list "My day"` or any other list created by default. The following aliases can be used:
-
+### Show all tasks
 ```bash
-todo myday
+todo tasks "Shopping List"
 ```
 
+## Tasks
+### Creating a task
 ```bash
-todo important
+todo tasks "Shopping List" add "Buy milk" --due-date "" --reminder-date "" --notes "" --remind  --checklist "" --file ""
 ```
 
+### Marking completion
 ```bash
-todo planned
+todo tasks "Shopping List" check "Buy milk"
 ```
+Marks a task as completed.
 
 ```bash
-todo assigned
+todo tasks "Shopping List" uncheck "Buy milk"
+```
+Mark a task as not done.
+
+### Delete task
+```bash
+todo tasks "Shopping List" delete "Buy milk"
 ```
