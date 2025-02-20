@@ -86,10 +86,18 @@ public class ApiQueries
             Body = new ItemBody
             {
                 Content = notes
-            },
-            ReminderDateTime = reminder,
-            DueDateTime = dueDate,
+            }
         };
+
+        if(reminder != null)
+        {
+            newTask.ReminderDateTime = reminder;
+        }
+        
+        if(dueDate != null) 
+        {
+            newTask.DueDateTime = dueDate;
+        }
 
         //var checkListItemsForApi = checkListItems?.Select(ck => new ChecklistItem
         //{
