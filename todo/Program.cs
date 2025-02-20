@@ -48,18 +48,16 @@ class Program
         var remindDateOption = new Option<DateTime?>("--reminder-date", () => null, "At this time an alert will be sent to remind you of this task. This alert will be shown by one of the official apps, either on desktop or on your phone.");
         addCommand.Add(remindDateOption);
 
-        var attachmentOption = new Option<List<FileInfo>>("--file", "Attachments to be added to task");
-
         var notesOption = new Option<string>("--notes", "Aditional notes for the task");
         addCommand.Add(notesOption);
 
         //var checklist = new Option<string>("--checklist", "Steps to complete this task. Or extra things that need to be done.");
 
-        addCommand.SetHandler(async (listName, task, dueDate, remindDate, attachments, notes) =>
+        addCommand.SetHandler(async (listName, task, dueDate, remindDate, notes) =>
         {
-            var newTask = await todoActions.CreateTask(task, listName, dueDate, remindDate, attachments, notes);
+            var newTask = await todoActions.CreateTask(task, listName, dueDate, remindDate, notes);
             PrettyPrint.Print(newTask);
-        }, listNameArgument, taskTitleArgument, dueDateOption, remindDateOption, attachmentOption, notesOption);
+        }, listNameArgument, taskTitleArgument, dueDateOption, remindDateOption, notesOption);
         task.Add(addCommand);
 #pragma endregion AddCommand
 

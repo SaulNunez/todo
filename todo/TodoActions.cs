@@ -33,7 +33,7 @@ public class TodoActions(ApiQueries api)
     }
 
     public async Task<TodoTask?> CreateTask(string title, string listName, DateTime? dueDate = null,
-        DateTime? reminder = null, List<FileInfo>? fileUri = null, string? notes = "")
+        DateTime? reminder = null, string? notes = "")
     {
         var listId = await api.GetListId(listName);
         var dueDateTimeTimeZone = dueDate != null ? new DateTimeTimeZone
@@ -48,7 +48,7 @@ public class TodoActions(ApiQueries api)
         } : null;
         // Microsoft graph asks for a time with a timezone, will be using system timezone
         //var reminderDateTimeZone = reminder.
-        return await api.CreateTask(title, listId, reminderDateTimeTimeZone, dueDateTimeTimeZone, fileUri, notes);
+        return await api.CreateTask(title, listId, reminderDateTimeTimeZone, dueDateTimeTimeZone, notes);
     }
 
     public async Task<TodoTask?> EditTask(string originalTitle, string listName, string? newTitle = null,

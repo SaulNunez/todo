@@ -78,7 +78,7 @@ public class ApiQueries
     }
 
     public Task<TodoTask?> CreateTask(string title, string listId, DateTimeTimeZone? reminder = null,
-    DateTimeTimeZone? dueDate = null, List<FileInfo>? fileUri = null, string? notes = "")
+    DateTimeTimeZone? dueDate = null, string? notes = "")
     {
         var newTask = new TodoTask
         {

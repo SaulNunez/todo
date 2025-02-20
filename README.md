@@ -46,7 +46,7 @@ todo tasks "Shopping List"
 ## Tasks
 ### Creating a task
 ```bash
-todo tasks "Shopping List" add "Buy milk" --due-date "" --reminder-date "" --notes "" --remind  --checklist "" --file ""
+todo tasks "Shopping List" add "Buy milk" --due-date "2025-02-19" --reminder-date "2025-02-18 11:59:00" --notes "Whole milk"
 ```
 
 ### Marking completion
