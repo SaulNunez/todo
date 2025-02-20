@@ -6,8 +6,14 @@ public static class PrettyPrint{
     public static void Print(TodoTask task){
         Console.WriteLine(task.Title);
         Console.WriteLine(task.Status);
-        Console.WriteLine(task.DueDateTime.ToDateTimeOffset());
-        Console.WriteLine(task.ReminderDateTime.ToDateTimeOffset());
+        if(task.DueDateTime != null)
+        {
+            Console.WriteLine(task.DueDateTime.ToDateTimeOffset());
+        }
+        if(task.ReminderDateTime != null)
+        {
+            Console.WriteLine(task.ReminderDateTime.ToDateTimeOffset());
+        }
     }
 
     static void IndividualTaskItem(TodoTask task){
