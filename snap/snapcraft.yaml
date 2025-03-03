@@ -20,10 +20,10 @@ parts:
     plugin: dotnet
     dotnet-build-configuration: Release
     dotnet-self-contained-runtime-identifier: linux-x64
-    build-snaps:
+    build-packages:
       - dotnet-sdk-8.0
-    stage-snaps:
-      - dotnet-runtime-8.0
+    stage-packages:
+      - libicu70
   appsettings:
     plugin: dump
     source: src/
