@@ -25,7 +25,10 @@ public class ApiQueries
     public async Task<string?> GetListId(string name)
     {
         var lists = await GetAvailableLists();
-        var listOfName = lists.Value.FirstOrDefault(l => l.DisplayName == name.Trim());
+        // Contains is used to handle emojis in list titles
+        // They are useful for visual organization
+        // But they are a bit of a pain
+        var listOfName = lists.Value.FirstOrDefault(l => l.DisplayName?.Contains(name.Trim()) ?? false);
         return listOfName?.Id;
     }
 
