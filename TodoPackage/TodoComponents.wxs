@@ -1,0 +1,9 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Fragment>
+    <ComponentGroup Id="TodoComponents" Directory="INSTALLFOLDER">
+      <Component>
+        <File Source="todo.exe" />
+      </Component>
+    </ComponentGroup>
+  </Fragment>
+</Wix>
