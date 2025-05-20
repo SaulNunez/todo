@@ -26,14 +26,24 @@ parts:
       - libicu70
   appsettings:
     plugin: dump
-    source: src/
-    prime:
+    source: .
+    stage:
       - appsettings.json
 
+plugs:
+  todo-unofficial-cli:
+    interface: personal-files
+    write:
+      - $HOME/.cache/todo_unofficial_cli
+
 apps:
-  todo:
+  todo-unofficial-cli:
     command: todo
+    environment:
+      APP_CONFIG_PATH: $SNAP/appsettings.json
     plugs:
       - network
+      - network-bind
+      - todo-unofficial-cli
 
   
