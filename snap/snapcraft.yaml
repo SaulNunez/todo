@@ -30,12 +30,6 @@ parts:
     stage:
       - appsettings.json
 
-plugs:
-  todo-unofficial-cli:
-    interface: personal-files
-    write:
-      - $HOME/.cache/todo_unofficial_cli
-
 apps:
   todo-unofficial-cli:
     command: todo
@@ -44,6 +38,6 @@ apps:
     plugs:
       - network
       - network-bind
-      - todo-unofficial-cli
+      - password-manager-service
 
   
