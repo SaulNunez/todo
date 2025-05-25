@@ -14,7 +14,7 @@ public static class Auth
     {
         // Building StorageCreationProperties
         var storageProperties =
-             new StorageCreationPropertiesBuilder(CacheSettings.CacheFileName, CacheSettings.CacheDir)
+             new StorageCreationPropertiesBuilder(CacheSettings.CacheFileName, CacheSettings.GetCacheDir())
              .WithLinuxKeyring(
                  CacheSettings.LinuxKeyRingSchema,
                  CacheSettings.LinuxKeyRingCollection,
@@ -78,7 +78,7 @@ public static class Auth
                 return Task.FromResult(0);
             }).ExecuteAsync();
 
-        Console.WriteLine(result.Account.Username);
+        //Console.WriteLine(result.Account.Username);
         return result;
     }
 
