@@ -1,0 +1,11 @@
+﻿<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package Name="Todo-Unofficial-CLI" Manufacturer="Saúl Núñez" Version="0.1.0.0" UpgradeCode="338f0ca6-21c3-495c-a1f0-711a69a0450e">
+    <MajorUpgrade DowngradeErrorMessage="!(loc.DowngradeError)" />
+
+	<MediaTemplate EmbedCab="yes" />
+	  
+    <Feature Id="Main">
+      <ComponentGroupRef Id="TodoComponents" />
+    </Feature>
+  </Package>
+</Wix>
