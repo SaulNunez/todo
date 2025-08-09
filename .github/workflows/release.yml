@@ -1,0 +1,95 @@
+name: Release Build
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '8.0.x'
+      - name: Build Mac Universal
+        run: |
+          dotnet publish todo/todo.csproj -c Release -r osx-x64 --self-contained
+          dotnet publish todo/todo.csproj -c Release -r osx-arm64 --self-contained
+          mkdir -p osx-universal/todo
+          lipo -create -output osx-universal/todo/todo \
+            todo/bin/Release/*/osx-x64/publish/todo \
+            todo/bin/Release/*/osx-arm64/publish/todo
+      - name: Upload Mac artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: todo-mac-universal
+          path: osx-universal/todo
+
+  build-linux:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        arch: ['x64', 'arm64']
+        include:
+          - arch: x64
+            rid: linux-x64
+          - arch: arm64
+            rid: linux-arm64
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '8.0.x'
+      - name: Build Linux ${{ matrix.arch }}
+        run: dotnet publish todo/todo.csproj -c Release -r ${{ matrix.rid }} --self-contained
+      - name: Upload Linux artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: todo-${{ matrix.rid }}
+          path: todo/bin/Release/*/publish/
+
+  build-windows:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        arch: ['x64', 'arm64']
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '8.0.x'
+      - name: Add msbuild to PATH
+        uses: microsoft/setup-msbuild@v1.1
+      - name: Build Windows Package ${{ matrix.arch }}
+        run: |
+          msbuild TodoPackage/TodoPackage.wixproj /p:Configuration=Release /p:Platform=${{ matrix.arch }}
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: todo-win-${{ matrix.arch }}
+          path: TodoPackage/bin/${{ matrix.arch }}/Release/*.msi
+
+  create-release:
+    needs: [build-mac, build-linux, build-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v3
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            todo-mac-universal/**/*
+            todo-linux-x64/**/*
+            todo-linux-arm64/**/*
+            todo-win-x64/**/*.msi
+            todo-win-arm64/**/*.msi
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
