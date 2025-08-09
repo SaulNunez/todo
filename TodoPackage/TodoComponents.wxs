@@ -1,9 +1,16 @@
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
-  <Fragment>
-    <ComponentGroup Id="TodoComponents" Directory="INSTALLFOLDER">
-      <Component>
-        <File Source="todo.exe" />
-      </Component>
-    </ComponentGroup>
-  </Fragment>
+	<Fragment>
+		<ComponentGroup Id="TodoComponents" Directory="INSTALLFOLDER">
+			<Component>
+				<File Source="todo.exe" />
+				<Environment Id="AddToUserPath"
+					 Name="PATH"
+					 Action="set"
+					 Part="last"
+					 System="no"
+					 Permanent="no"
+					 Value="[INSTALLFOLDER]" />
+			</Component>
+		</ComponentGroup>
+	</Fragment>
 </Wix>
