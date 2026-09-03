@@ -1,4 +1,4 @@
-﻿using Microsoft.Graph;
+using Microsoft.Graph;
 using Microsoft.Graph.Models;
 using TaskStatus = Microsoft.Graph.Models.TaskStatus;
 
@@ -10,7 +10,12 @@ namespace todo;
 /// </summary>
 public class ApiQueries
 {
-    public readonly GraphServiceClient graphClient;
+    /// <summary>
+    /// Stops a malformed @odata.nextLink chain from looping forever.
+    /// </summary>
+    private const int MaxPages = 100;
+
+    private readonly GraphServiceClient graphClient;
 
     public ApiQueries(GraphServiceClient graphClient)
     {
@@ -24,50 +29,123 @@ public class ApiQueries
 
     public async Task<string?> GetListId(string name)
     {
+        // An empty name would make the matching below accept every list, which
+        // silently targets an arbitrary list instead of failing.
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            throw new TodoCliException("A list name is required.");
+        }
+
+        var wanted = name.Trim();
         var lists = await GetAvailableLists();
-        // Contains is used to handle emojis in list titles
-        // They are useful for visual organization
-        // But they are a bit of a pain
-        var listOfName = lists.Value.FirstOrDefault(l => l.DisplayName?.Contains(name.Trim()) ?? false);
-        return listOfName?.Id;
+
+        // An exact title wins outright, so a list named "Work" is reachable even when
+        // a "Work (archived)" list also exists.
+        var exactMatch = lists.FirstOrDefault(l => string.Equals(
+            l.DisplayName?.Trim(), wanted, StringComparison.CurrentCultureIgnoreCase));
+        if (exactMatch != null)
+        {
+            return exactMatch.Id;
+        }
+
+        // Otherwise fall back to a substring match, which is what makes emoji-decorated
+        // titles usable. They are good for visual organization but a pain to type.
+        var partialMatches = lists
+            .Where(l => l.DisplayName?.Contains(wanted, StringComparison.CurrentCultureIgnoreCase) ?? false)
+            .ToList();
+
+        return partialMatches.Count switch
+        {
+            0 => null,
+            1 => partialMatches[0].Id,
+            _ => throw new TodoCliException(
+                $"'{name}' matches {partialMatches.Count} lists: " +
+                string.Join(", ", partialMatches.Select(l => $"\"{l.DisplayName}\"")) +
+                ". Please use the exact list name.")
+        };
     }
 
     public async Task<string?> GetTaskId(string taskTitle, string listId)
     {
-        var taskInList = await GetTasksInList(listId);
-        return taskInList.Value.FirstOrDefault(t => t.Title == taskTitle)?.Id;
+        var tasksInList = await GetTasksInList(listId);
+        var wanted = taskTitle.Trim();
+
+        var exactMatch = tasksInList.FirstOrDefault(t => t.Title == taskTitle);
+        if (exactMatch != null)
+        {
+            return exactMatch.Id;
+        }
+
+        var caseInsensitiveMatches = tasksInList
+            .Where(t => string.Equals(t.Title?.Trim(), wanted, StringComparison.CurrentCultureIgnoreCase))
+            .ToList();
+
+        return caseInsensitiveMatches.Count switch
+        {
+            0 => null,
+            1 => caseInsensitiveMatches[0].Id,
+            _ => throw new TodoCliException(
+                $"'{taskTitle}' matches {caseInsensitiveMatches.Count} tasks in this list. " +
+                "Please use the exact task title.")
+        };
     }
 
-    public async Task<TodoTaskCollectionResponse?> GetTasksInList(string listId)
+    /// <summary>
+    /// Returns every task in the list, following @odata.nextLink. Graph only returns
+    /// one page at a time, so without this tasks past the first page are invisible
+    /// to "todo tasks" and unfindable by check/uncheck/delete.
+    /// </summary>
+    public async Task<List<TodoTask>> GetTasksInList(string listId)
     {
-        return await graphClient.Me.Todo.Lists[listId].Tasks.GetAsync();
+        var tasks = new List<TodoTask>();
+        var page = await graphClient.Me.Todo.Lists[listId].Tasks.GetAsync();
+
+        for (var pageCount = 0; page?.Value != null && pageCount < MaxPages; pageCount++)
+        {
+            tasks.AddRange(page.Value);
+
+            if (string.IsNullOrEmpty(page.OdataNextLink))
+            {
+                break;
+            }
+
+            page = await graphClient.Me.Todo.Lists[listId].Tasks
+                .WithUrl(page.OdataNextLink)
+                .GetAsync();
+        }
+
+        return tasks;
     }
 
-    public async Task<TodoTask?> EditTask(string taskId, string listId, string? newTitle = null, 
-        DateTimeTimeZone? reminder = null, DateTimeTimeZone? dueDate = null, 
+    public async Task<TodoTask?> EditTask(string taskId, string listId, string? newTitle = null,
+        DateTimeTimeZone? reminder = null, DateTimeTimeZone? dueDate = null,
         List<FileInfo>? fileUri = null,  TaskStatus? status = null, string? notes = null )
     {
-        var existingTask = await graphClient.Me.Todo.Lists[listId].Tasks[taskId].GetAsync() ?? throw new Exception("No task found");
+        // PATCH only the fields being changed. Reading the task and sending the whole
+        // entity back would also echo server-owned properties such as CreatedDateTime,
+        // which costs an extra round-trip and can be rejected.
+        var changes = new TodoTask();
+
         if (newTitle != null){
-            existingTask.Title = newTitle;
+            changes.Title = newTitle;
         }
         if(notes != null){
-            existingTask.Body = new ItemBody
+            changes.Body = new ItemBody
             {
                 Content = notes
             };
         }
 
         if(reminder != null){
-            existingTask.ReminderDateTime = reminder;
+            changes.ReminderDateTime = reminder;
         }
 
         if(dueDate != null){
-            existingTask.DueDateTime = dueDate;
+            changes.DueDateTime = dueDate;
         }
 
         if(status != null){
-            existingTask.Status = status;
+            changes.Status = status;
         }
 
         //var checkListItemsForApi = checkListItems?.Select(ck => new ChecklistItem
@@ -77,20 +155,24 @@ public class ApiQueries
 
         return await graphClient.Me.Todo.Lists[listId]
             .Tasks[taskId]
-            .PatchAsync(existingTask);
+            .PatchAsync(changes);
     }
 
     public Task<TodoTask?> CreateTask(string title, string listId, DateTimeTimeZone? reminder = null,
-    DateTimeTimeZone? dueDate = null, string? notes = "")
+    DateTimeTimeZone? dueDate = null, string? notes = null)
     {
         var newTask = new TodoTask
         {
-            Title = title,
-            Body = new ItemBody
+            Title = title
+        };
+
+        if(notes != null)
+        {
+            newTask.Body = new ItemBody
             {
                 Content = notes
-            }
-        };
+            };
+        }
 
         if(reminder != null)
         {
@@ -110,9 +192,30 @@ public class ApiQueries
         return graphClient.Me.Todo.Lists[listId].Tasks.PostAsync(newTask);
     }
 
-    public Task<TodoTaskListCollectionResponse?> GetAvailableLists()
+    /// <summary>
+    /// Returns every list, following @odata.nextLink for the same reason as
+    /// <see cref="GetTasksInList"/>.
+    /// </summary>
+    public async Task<List<TodoTaskList>> GetAvailableLists()
     {
-        return graphClient.Me.Todo.Lists.GetAsync();
+        var lists = new List<TodoTaskList>();
+        var page = await graphClient.Me.Todo.Lists.GetAsync();
+
+        for (var pageCount = 0; page?.Value != null && pageCount < MaxPages; pageCount++)
+        {
+            lists.AddRange(page.Value);
+
+            if (string.IsNullOrEmpty(page.OdataNextLink))
+            {
+                break;
+            }
+
+            page = await graphClient.Me.Todo.Lists
+                .WithUrl(page.OdataNextLink)
+                .GetAsync();
+        }
+
+        return lists;
     }
 
     public Task<TodoTaskList?> AddTaskList(string name)

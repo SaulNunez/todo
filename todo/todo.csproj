@@ -16,6 +16,7 @@
     <PackageReference Include="Microsoft.Extensions.Configuration" Version="9.0.2" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="9.0.2" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="9.0.2" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="9.0.2" />
     <PackageReference Include="Microsoft.Graph" Version="5.70.0" />
     <PackageReference Include="Microsoft.Identity.Client" Version="4.68.0" />
     <PackageReference Include="Pastel" Version="6.0.1" />
@@ -23,9 +24,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="appsettings.json">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
+    <!-- appsettings.json is picked up by the SDK's default None glob; this only adds the
+         copy-to-output metadata. It must stay committed: the CLI reads it from next to
+         the executable, and while it was gitignored every published build shipped
+         without it and threw on startup. -->
+    <None Update="appsettings.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ProjectExtensions><VisualStudio><UserProperties /></VisualStudio></ProjectExtensions>
