@@ -1,30 +1,31 @@
-﻿using todo;
+using todo;
 using System.CommandLine;
+using System.CommandLine.Builder;
+using System.CommandLine.Parsing;
 using Microsoft.Extensions.Configuration;
 
 class Program
 {
-    static AzureADOauth? authInformation;
-    
+    const string ClientIdPlaceholder = "REPLACE_WITH_APP_REGISTRATION_CLIENT_ID";
+
     static async Task<int> Main(string[] args)
     {
-#pragma region ApiSetup        
-        var config = new ConfigurationBuilder()
-            .AddJsonFile("appsettings.json")
-            .Build();
-
-        authInformation = config.GetSection("AzureADInfo").Get<AzureADOauth>();
-        var authResult = await Auth.SignInSilently(authInformation!);
-        var graphClient = Auth.CreateGraphClient(authResult);
-        var apiQueries = new ApiQueries(graphClient);
-        var todoActions = new TodoActions(apiQueries);
-#pragma endregion ApiSetup
+        // Sign-in is deferred until a command actually needs it, so that --help,
+        // --version and parse errors do not trigger a device-code login.
+        var todoActions = new Lazy<Task<TodoActions>>(CreateTodoActionsAsync);
 
         var rootCommand = new RootCommand(description: "Unofficial CLI for To-Do.");
 
-#pragma region TasksInListCommand
+        #region TasksInListCommand
         var task = new Command("tasks", "Show tasks in list");
         var listNameArgument = new Argument<string>("listName", "Name of the list");
+        listNameArgument.AddValidator(result =>
+        {
+            if (string.IsNullOrWhiteSpace(result.GetValueOrDefault<string>()))
+            {
+                result.ErrorMessage = "A list name is required, for example: todo tasks \"Shopping List\"";
+            }
+        });
         task.Add(listNameArgument);
         //var listHiddenOption = new Option<bool>("--show-completed", () => false, "Show completed tasks in list");
         //tasksCommand.Add(listHiddenOption);
@@ -32,13 +33,13 @@ class Program
         task.SetHandler<string>(async (listName) =>
         {
             // Perform operations on the specified list
-            var listOfTasks = await todoActions.GetTasksInList(listName);
+            var listOfTasks = await (await todoActions.Value).GetTasksInList(listName);
             PrettyPrint.Print(listOfTasks);
         }, listNameArgument);
         rootCommand.Add(task);
-#pragma endregion TasksInListCommand
+        #endregion TasksInListCommand
 
-#pragma region AddCommand
+        #region AddCommand
         var addCommand = new Command("add", "Create a task.");
         var taskTitleArgument = new Argument<string>("task", "Task description");
         addCommand.Add(taskTitleArgument);
@@ -55,77 +56,155 @@ class Program
 
         addCommand.SetHandler(async (listName, task, dueDate, remindDate, notes) =>
         {
-            var newTask = await todoActions.CreateTask(task, listName, dueDate, remindDate, notes);
+            var newTask = await (await todoActions.Value).CreateTask(task, listName, dueDate, remindDate, notes);
             PrettyPrint.Print(newTask);
         }, listNameArgument, taskTitleArgument, dueDateOption, remindDateOption, notesOption);
         task.Add(addCommand);
-#pragma endregion AddCommand
+        #endregion AddCommand
 
-#pragma region CheckCommand
+        #region CheckCommand
         var checkCommand = new Command("check", "Mark a task as done");
         var checkTaskArgument = new Argument<string>("task", "Task title.");
         checkCommand.Add(checkTaskArgument);
         checkCommand.SetHandler(async (listName, task) =>
         {
-            var editedTask = await todoActions.EditTask(task, listName, status:Microsoft.Graph.Models.TaskStatus.Completed);
+            var editedTask = await (await todoActions.Value).EditTask(task, listName, status:Microsoft.Graph.Models.TaskStatus.Completed);
             PrettyPrint.Print(editedTask);
         }, listNameArgument, checkTaskArgument);
         task.Add(checkCommand);
-#pragma endregion CheckCommand
+        #endregion CheckCommand
 
-#pragma region UncheckCommand
+        #region UncheckCommand
         var uncheckCommand = new Command("uncheck", "Mark a task as not done");
         var uncheckTaskArgument = new Argument<string>("task", "Task title.");
         uncheckCommand.Add(uncheckTaskArgument);
         uncheckCommand.SetHandler(async (listName, task) =>
         {
-            var editedTask = await todoActions.EditTask(task, listName, status:Microsoft.Graph.Models.TaskStatus.NotStarted);
+            var editedTask = await (await todoActions.Value).EditTask(task, listName, status:Microsoft.Graph.Models.TaskStatus.NotStarted);
             PrettyPrint.Print(editedTask);
         }, listNameArgument, uncheckTaskArgument);
         task.Add(uncheckCommand);
-#pragma endregion UncheckCommand
+        #endregion UncheckCommand
 
-#pragma region DeleteCommand
+        #region DeleteCommand
         var deleteCommand = new Command("delete", "Delete a task");
         var deleteTaskArgument = new Argument<string>("task", "Task title.");
         deleteCommand.Add(deleteTaskArgument);
         deleteCommand.SetHandler(async (listName, task) =>
         {
-            await todoActions.DeleteTask(listName, task);
+            await (await todoActions.Value).DeleteTask(listName, task);
         }, listNameArgument, deleteTaskArgument);
         task.Add(deleteCommand);
-#pragma endregion DeleteCommand
+        #endregion DeleteCommand
 
-#pragma region ListCommand
+        // The listName argument lives on "tasks", but the parser happily binds it to ""
+        // when a subcommand token is seen first (todo tasks add "Buy milk"). An empty
+        // name matches every list, so guard each subcommand at parse time.
+        foreach (var subcommand in new[] { addCommand, checkCommand, uncheckCommand, deleteCommand })
+        {
+            subcommand.AddValidator(result =>
+            {
+                var listNameResult = result.FindResultFor(listNameArgument)
+                    ?? result.Parent?.FindResultFor(listNameArgument);
+                if (listNameResult is null)
+                {
+                    result.ErrorMessage =
+                        $"A list name is required, for example: todo tasks \"Shopping List\" {subcommand.Name} ...";
+                }
+            });
+        }
+
+        #region ListCommand
         var showListsCommand = new Command("lists", "Show all lists.");
         showListsCommand.SetHandler(async () => {
-            var lists = await todoActions.GetAllLists();
+            var lists = await (await todoActions.Value).GetAllLists();
             PrettyPrint.Print(lists);
         });
         rootCommand.Add(showListsCommand);
 
-#pragma endregion ListCommand    
+        #endregion ListCommand
 
-#pragma region AddListCommand
+        #region AddListCommand
         var createListCommand = new Command("add", "Create a new list.");
         var addListNameArgument = new Argument<string>("listName", "Name of the list");
         createListCommand.SetHandler(async (listName) => {
-            await todoActions.AddList(listName);
+            await (await todoActions.Value).AddList(listName);
         }, addListNameArgument);
         createListCommand.Add(addListNameArgument);
         showListsCommand.Add(createListCommand);
-#pragma endregion AddListCommand
+        #endregion AddListCommand
 
-#pragma region DeleteListCommand
+        #region DeleteListCommand
         var deleteListCommand = new Command("delete", "Delete a list.");
         var deleteListNameArgument = new Argument<string>("listName", "Name of the list");
+        deleteListNameArgument.AddValidator(result =>
+        {
+            if (string.IsNullOrWhiteSpace(result.GetValueOrDefault<string>()))
+            {
+                result.ErrorMessage = "A list name is required, for example: todo lists delete \"Shopping List\"";
+            }
+        });
         deleteListCommand.SetHandler(async (listName) => {
-            await todoActions.DeleteList(listName);
+            await (await todoActions.Value).DeleteList(listName);
         }, deleteListNameArgument);
         deleteListCommand.Add(deleteListNameArgument);
         showListsCommand.Add(deleteListCommand);
-#pragma endregion DeleteListCommand
+        #endregion DeleteListCommand
 
-        return await rootCommand.InvokeAsync(args);
+        var parser = new CommandLineBuilder(rootCommand)
+            .UseDefaults()
+            .UseExceptionHandler((exception, context) =>
+            {
+                // Errors the user can act on are reported as a plain message;
+                // anything else keeps its stack trace for bug reports.
+                context.Console.Error.Write(
+                    (exception is TodoCliException ? exception.Message : exception.ToString()) + Environment.NewLine);
+                context.ExitCode = 1;
+            })
+            .Build();
+
+        return await parser.InvokeAsync(args);
     }
+
+    #region ApiSetup
+    static async Task<TodoActions> CreateTodoActionsAsync()
+    {
+        var authInformation = LoadAuthInformation();
+        var authResult = await Auth.SignInSilently(authInformation);
+        var graphClient = Auth.CreateGraphClient(authResult);
+        return new TodoActions(new ApiQueries(graphClient));
+    }
+
+    static AzureADOauth LoadAuthInformation()
+    {
+        // Relative paths resolve against AppContext.BaseDirectory (next to the
+        // executable), not the working directory, so the CLI works from anywhere.
+        var configBuilder = new ConfigurationBuilder()
+            .SetBasePath(AppContext.BaseDirectory)
+            .AddJsonFile("appsettings.json", optional: true);
+
+        // The snap package ships its config outside the app directory.
+        var configPathOverride = Environment.GetEnvironmentVariable("APP_CONFIG_PATH");
+        if (!string.IsNullOrWhiteSpace(configPathOverride))
+        {
+            configBuilder.AddJsonFile(configPathOverride, optional: true);
+        }
+
+        var config = configBuilder.AddEnvironmentVariables("TODO_").Build();
+
+        var authInformation = config.GetSection("AzureADInfo").Get<AzureADOauth>();
+        if (authInformation is null
+            || string.IsNullOrWhiteSpace(authInformation.ClientId)
+            || authInformation.ClientId == ClientIdPlaceholder)
+        {
+            throw new TodoCliException(
+                "No Azure AD client ID is configured, so todo cannot sign you in.\n" +
+                $"Set AzureADInfo:ClientId in {Path.Combine(AppContext.BaseDirectory, "appsettings.json")}, " +
+                "or set the TODO_AzureADInfo__ClientId environment variable.\n" +
+                "The client ID comes from your Microsoft Entra app registration and is not a secret.");
+        }
+
+        return authInformation;
+    }
+    #endregion ApiSetup
 }

@@ -13,68 +13,70 @@ public class TodoActions(ApiQueries api)
 {
     private readonly ApiQueries api = api;
 
+    /// <summary>
+    /// Microsoft Graph wants a time plus a timezone name. Sending
+    /// TimeZoneInfo.Local.StandardName only works where ICU supplies a Windows-style
+    /// name; with InvariantGlobalization, or on a container without ICU, it degrades
+    /// to an IANA id or abbreviation that Graph rejects. Converting to UTC and saying
+    /// so is unambiguous everywhere.
+    /// </summary>
+    private static DateTimeTimeZone? ToGraphDateTime(DateTime? value)
+    {
+        if (value is null)
+        {
+            return null;
+        }
+
+        return new DateTimeTimeZone
+        {
+            DateTime = value.Value.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss", CultureInfo.InvariantCulture),
+            TimeZone = "UTC"
+        };
+    }
+
     public async Task DeleteTask(string listName, string taskTitle)
     {
-        var listId = await api.GetListId(listName) ?? throw new Exception("List couldn't be found");
-        var taskId = await api.GetTaskId(taskTitle, listId!) ?? throw new Exception("Task couldn't be found.");
+        var listId = await api.GetListId(listName) ?? throw new TodoCliException($"List \"{listName}\" couldn't be found.");
+        var taskId = await api.GetTaskId(taskTitle, listId) ?? throw new TodoCliException($"Task \"{taskTitle}\" couldn't be found in \"{listName}\".");
 
-        await api.DeleteTask(listId!, taskId!);
+        await api.DeleteTask(listId, taskId);
     }
 
     public async Task<TodoTask?> CreateTask(string title, string listName, DateTime? dueDate = null,
-        DateTime? reminder = null, string? notes = "")
+        DateTime? reminder = null, string? notes = null)
     {
-        var listId = await api.GetListId(listName) ?? throw new Exception("List couldn't be found");
-        var dueDateTimeTimeZone = dueDate != null ? new DateTimeTimeZone
-        {
-            DateTime = dueDate?.ToString("yyyy-MM-ddTHH:mm:ss", CultureInfo.InvariantCulture),
-            TimeZone = TimeZoneInfo.Local.StandardName
-        } : null;
-        var reminderDateTimeTimeZone = reminder != null ? new DateTimeTimeZone
-        {
-            DateTime = reminder?.ToString("yyyy-MM-ddTHH:mm:ss", CultureInfo.InvariantCulture),
-            TimeZone = TimeZoneInfo.Local.StandardName
-        } : null;
-        // Microsoft graph asks for a time with a timezone, will be using system timezone
-        //var reminderDateTimeZone = reminder.
-        return await api.CreateTask(title, listId, reminderDateTimeTimeZone, dueDateTimeTimeZone, notes);
+        var listId = await api.GetListId(listName) ?? throw new TodoCliException($"List \"{listName}\" couldn't be found.");
+        return await api.CreateTask(title, listId, ToGraphDateTime(reminder), ToGraphDateTime(dueDate), notes);
     }
 
+    // notes defaults to null, not "": a null means "leave the notes alone". It used to
+    // default to "", so check/uncheck - which never pass notes - wiped the task's notes.
     public async Task<TodoTask?> EditTask(string originalTitle, string listName, string? newTitle = null,
     TaskStatus? status = null, DateTime? dueDate = null, DateTime? reminder = null, 
-    List<FileInfo>? fileUri = null, string? notes = "")
+    List<FileInfo>? fileUri = null, string? notes = null)
     {
-        var listId = await api.GetListId(listName) ?? throw new Exception("List couldn't be found");
-        var taskId = await api.GetTaskId(originalTitle, listId!) ?? throw new Exception("Task couldn't be found.");
-        var dueDateTimeTimeZone = dueDate != null ?new DateTimeTimeZone
-        {
-            DateTime = dueDate?.ToString("yyyy-MM-ddTHH:mm:ss", CultureInfo.InvariantCulture),
-            TimeZone = TimeZoneInfo.Local.StandardName
-        } : null;
-        var reminderDateTimeTimeZone = reminder != null ? new DateTimeTimeZone
-        {
-            DateTime = reminder?.ToString("yyyy-MM-ddTHH:mm:ss", CultureInfo.InvariantCulture),
-            TimeZone = TimeZoneInfo.Local.StandardName
-        } : null;
-        return await api.EditTask(taskId, listId, newTitle, reminderDateTimeTimeZone, dueDateTimeTimeZone, fileUri, status, notes);
+        var listId = await api.GetListId(listName) ?? throw new TodoCliException($"List \"{listName}\" couldn't be found.");
+        var taskId = await api.GetTaskId(originalTitle, listId) ?? throw new TodoCliException($"Task \"{originalTitle}\" couldn't be found in \"{listName}\".");
+
+        return await api.EditTask(taskId, listId, newTitle, ToGraphDateTime(reminder), ToGraphDateTime(dueDate), fileUri, status, notes);
     }
 
-    public Task<Microsoft.Graph.Models.TodoTaskListCollectionResponse?> GetAllLists(){
+    public Task<List<TodoTaskList>> GetAllLists(){
         return api.GetAvailableLists();
     }
 
-    public Task<Microsoft.Graph.Models.TodoTaskList?> AddList(string listName){
+    public Task<TodoTaskList?> AddList(string listName){
         return api.AddTaskList(listName);
     }
 
     public async Task DeleteList(string listName){
-        var listId = await api.GetListId(listName) ?? throw new Exception("List couldn't be found");
-        
+        var listId = await api.GetListId(listName) ?? throw new TodoCliException($"List \"{listName}\" couldn't be found.");
+
         await api.DeleteTaskList(listId);
     }
 
-    public async Task<Microsoft.Graph.Models.TodoTaskCollectionResponse?> GetTasksInList(string listName){
-        var listId = await api.GetListId(listName) ?? throw new Exception("List couldn't be found");
+    public async Task<List<TodoTask>> GetTasksInList(string listName){
+        var listId = await api.GetListId(listName) ?? throw new TodoCliException($"List \"{listName}\" couldn't be found.");
 
         return await api.GetTasksInList(listId);
     }

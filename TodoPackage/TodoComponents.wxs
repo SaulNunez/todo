@@ -2,6 +2,9 @@
 	<Fragment>
 		<ComponentGroup Id="TodoComponents" Directory="INSTALLFOLDER">
 			<Component>
+				<File Source="appsettings.json" />
+			</Component>
+			<Component>
 				<File Source="todo.exe" />
 				<Environment Id="AddToUserPath"
 					 Name="PATH"

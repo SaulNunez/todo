@@ -5,91 +5,123 @@ on:
     tags:
       - 'v*'
 
+permissions:
+  contents: read
+
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Test
+        run: dotnet test todo.Tests/todo.Tests.csproj -c Release
+
   build-mac:
+    needs: test
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup .NET
-        uses: actions/setup-dotnet@v3
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
       - name: Build Mac Universal
         run: |
-          dotnet publish todo/todo.csproj -c Release -r osx-x64 --self-contained
-          dotnet publish todo/todo.csproj -c Release -r osx-arm64 --self-contained
-          mkdir -p osx-universal/todo
-          lipo -create -output osx-universal/todo/todo \
-            todo/bin/Release/*/osx-x64/publish/todo \
-            todo/bin/Release/*/osx-arm64/publish/todo
+          dotnet publish todo/todo.csproj -c Release -r osx-x64 --self-contained -o publish/osx-x64
+          dotnet publish todo/todo.csproj -c Release -r osx-arm64 --self-contained -o publish/osx-arm64
+          mkdir -p osx-universal
+          lipo -create -output osx-universal/todo publish/osx-x64/todo publish/osx-arm64/todo
+          # The CLI reads appsettings.json from next to the executable.
+          cp publish/osx-arm64/appsettings.json osx-universal/
+          rm -f osx-universal/*.pdb
       - name: Upload Mac artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: todo-mac-universal
-          path: osx-universal/todo
+          path: osx-universal/
 
   build-linux:
+    needs: test
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        arch: ['x64', 'arm64']
-        include:
-          - arch: x64
-            rid: linux-x64
-          - arch: arm64
-            rid: linux-arm64
+        rid: [ linux-x64, linux-arm64 ]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup .NET
-        uses: actions/setup-dotnet@v3
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
-      - name: Build Linux ${{ matrix.arch }}
-        run: dotnet publish todo/todo.csproj -c Release -r ${{ matrix.rid }} --self-contained
+      - name: Build Linux ${{ matrix.rid }}
+        run: |
+          dotnet publish todo/todo.csproj -c Release -r ${{ matrix.rid }} --self-contained -o publish/${{ matrix.rid }}
+          rm -f publish/${{ matrix.rid }}/*.pdb
       - name: Upload Linux artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: todo-${{ matrix.rid }}
-          path: todo/bin/Release/*/publish/
+          path: publish/${{ matrix.rid }}/
 
   build-windows:
+    needs: test
     runs-on: windows-latest
     strategy:
       matrix:
-        arch: ['x64', 'arm64']
+        arch: [ 'x64', 'arm64' ]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup .NET
-        uses: actions/setup-dotnet@v3
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
       - name: Add msbuild to PATH
-        uses: microsoft/setup-msbuild@v1.1
+        uses: microsoft/setup-msbuild@v2
       - name: Build Windows Package ${{ matrix.arch }}
         run: |
           msbuild TodoPackage/TodoPackage.wixproj /p:Configuration=Release /p:Platform=${{ matrix.arch }}
       - name: Upload Windows artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: todo-win-${{ matrix.arch }}
           path: TodoPackage/bin/${{ matrix.arch }}/Release/*.msi
 
   create-release:
-    needs: [build-mac, build-linux, build-windows]
+    needs: [ build-mac, build-linux, build-windows ]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Download all artifacts
-        uses: actions/download-artifact@v3
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
+        uses: actions/download-artifact@v4
         with:
-          files: |
-            todo-mac-universal/**/*
-            todo-linux-x64/**/*
-            todo-linux-arm64/**/*
-            todo-win-x64/**/*.msi
-            todo-win-arm64/**/*.msi
+          path: artifacts
+
+      # Each platform artifact is now a folder (binary + appsettings.json), so it is
+      # zipped into one asset. Uploading the loose files would collide, since every
+      # platform contributes a file named appsettings.json.
+      - name: Package release assets
+        run: |
+          mkdir -p release
+          for platform in todo-mac-universal todo-linux-x64 todo-linux-arm64; do
+            (cd "artifacts/$platform" && zip -r "$GITHUB_WORKSPACE/release/$platform.zip" .)
+          done
+          for arch in x64 arm64; do
+            msi=$(find "artifacts/todo-win-$arch" -name '*.msi' | head -1)
+            if [ -z "$msi" ]; then
+              echo "::error::no .msi found for $arch"
+              exit 1
+            fi
+            cp "$msi" "release/todo-win-$arch.msi"
+          done
+          ls -la release
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release/*
           draft: false
           prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

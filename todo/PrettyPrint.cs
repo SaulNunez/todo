@@ -5,7 +5,11 @@ using Pastel;
 namespace todo;
 
 public static class PrettyPrint{
-    public static void Print(TodoTask task){
+    public static void Print(TodoTask? task){
+        if(task == null){
+            return;
+        }
+
         Console.WriteLine(task.Title);
 
         Console.Write("Status: ");
@@ -16,7 +20,7 @@ public static class PrettyPrint{
         {
             Console.Write("Due Date:");
             Console.Write('\t');
-            Console.WriteLine(DateOnly.FromDateTime(task.DueDateTime.ToDateTimeOffset().DateTime));
+            Console.WriteLine(DateOnly.FromDateTime(task.DueDateTime.ToDateTimeOffset().LocalDateTime));
         }
         if(task.ReminderDateTime != null)
         {
@@ -45,30 +49,33 @@ public static class PrettyPrint{
         if(task.DueDateTime != null)
         {
             Console.Write('\t');
-            if (task.DueDateTime.ToDateTime() < DateTime.Now)
+            // ToDateTime() drops the timezone, and Graph returns UTC, so comparing it
+            // against DateTime.Now was wrong by the local UTC offset.
+            var dueDate = task.DueDateTime.ToDateTimeOffset();
+            if (dueDate < DateTimeOffset.Now)
             {
-                Console.Write($"{task.DueDateTime.ToDateTime().ToString().Pastel(Color.Red)}");
+                Console.Write($"{dueDate.LocalDateTime.ToString().Pastel(Color.Red)}");
             } 
             else
             {
-                Console.Write(task.DueDateTime.ToDateTime());
+                Console.Write(dueDate.LocalDateTime);
             }
             
         }
         Console.WriteLine();
     }
 
-    public static void Print(TodoTaskCollectionResponse todoTaskCollection)
+    public static void Print(IReadOnlyList<TodoTask> tasks)
     {
-        foreach (var task in todoTaskCollection.Value)
+        foreach (var task in tasks)
         {
             IndividualTaskItem(task);
         }
     }
 
-    public static void Print(TodoTaskListCollectionResponse listCollectionResponse)
+    public static void Print(IReadOnlyList<TodoTaskList> lists)
     {
-        foreach(var list in listCollectionResponse.Value)
+        foreach(var list in lists)
         {
             Console.WriteLine(list.DisplayName);
         }

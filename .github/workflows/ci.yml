@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      # The solution also contains TodoPackage.wixproj, which only builds on Windows,
+      # so the projects are named explicitly rather than building todo.sln.
+      - name: Restore
+        run: |
+          dotnet restore todo/todo.csproj
+          dotnet restore todo.Tests/todo.Tests.csproj
+
+      - name: Build
+        run: dotnet build todo/todo.csproj -c Release --no-restore
+
+      - name: Test
+        run: dotnet test todo.Tests/todo.Tests.csproj -c Release
+
+      # Guards the failure mode where the app builds but the published artifact is
+      # unusable: appsettings.json was previously left out of every release, so the
+      # shipped binary threw before it could do anything.
+      - name: Publish smoke test
+        run: |
+          dotnet publish todo/todo.csproj -c Release -r linux-x64 --self-contained -o publish
+          test -f publish/appsettings.json || { echo "::error::appsettings.json missing from publish output"; exit 1; }
+          ./publish/todo --help
