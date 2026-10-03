@@ -145,7 +145,9 @@ public class ApiQueries
             changes.IsReminderOn = false;
         }
         else if(reminder != null){
+            // Without isReminderOn the time is stored but no alert fires.
             changes.ReminderDateTime = reminder;
+            changes.IsReminderOn = true;
         }
 
         if(clearDueDate){
@@ -188,6 +190,7 @@ public class ApiQueries
         if(reminder != null)
         {
             newTask.ReminderDateTime = reminder;
+            newTask.IsReminderOn = true;
         }
         
         if(dueDate != null) 

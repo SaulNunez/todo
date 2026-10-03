@@ -25,15 +25,21 @@ public record TaskEdit(
 }
 
 /// <summary>
-/// Create/edit form for a task. Dates are plain text fields so that blank can mean
-/// "no date", parsed the same way as the CLI's --due-date and --reminder-date.
+/// Create/edit form for a task. Dates use Terminal.Gui's DateEditor/TimeEditor. Those
+/// always hold a value, so a checkbox next to each one says whether the task has that
+/// date at all.
 /// </summary>
 public class TaskDialog : Dialog<TaskEdit>
 {
+    private const int FieldColumn = 14;
+
     private readonly TodoTask? original;
     private readonly TextField titleField;
-    private readonly TextField dueField;
-    private readonly TextField reminderField;
+    private readonly CheckBox hasDueBox;
+    private readonly DateEditor dueEditor;
+    private readonly CheckBox hasReminderBox;
+    private readonly DateEditor reminderDateEditor;
+    private readonly TimeEditor reminderTimeEditor;
     // TextView is marked obsolete in favour of tui-cs/Editor, which has no stable release
     // yet. It is still the only multi-line input in Terminal.Gui itself.
 #pragma warning disable CS0618
@@ -42,46 +48,63 @@ public class TaskDialog : Dialog<TaskEdit>
     private readonly CheckBox? completedBox;
     private readonly Label errorLabel;
 
+    private readonly DateTime? originalDue;
+    private readonly DateTime? originalReminder;
+
     public TaskDialog(TodoTask? existing)
     {
         original = existing;
         Title = existing is null ? "New task" : "Edit task";
 
+        originalDue = ToLocal(existing?.DueDateTime)?.Date;
+        originalReminder = TruncateToMinute(ToLocal(existing?.ReminderDateTime));
+
         var titleLabel = new Label { Text = "_Title:", X = 0, Y = 0 };
         titleField = new TextField
         {
             Text = existing?.Title ?? "",
-            X = 12, Y = 0, Width = 50
+            X = FieldColumn, Y = 0, Width = 50
         };
 
-        var dueLabel = new Label { Text = "_Due date:", X = 0, Y = 2 };
-        dueField = new TextField
+        hasDueBox = new CheckBox { Text = "_Due date", X = 0, Y = 2, Value = Checked(originalDue is not null) };
+        dueEditor = new DateEditor
         {
-            Text = FormatDate(existing?.DueDateTime),
-            X = 12, Y = 2, Width = 20
+            X = FieldColumn, Y = 2,
+            Value = originalDue ?? DateTime.Today
         };
-        var dueHint = new Label { Text = "e.g. 2026-10-31, blank for none", X = 34, Y = 2 };
 
-        var reminderLabel = new Label { Text = "_Reminder:", X = 0, Y = 3 };
-        reminderField = new TextField
+        // A new reminder defaults to 09:00 on the due date, or today without one.
+        var reminderDefault = originalReminder ?? (originalDue ?? DateTime.Today).AddHours(9);
+        hasReminderBox = new CheckBox { Text = "_Reminder", X = 0, Y = 3, Value = Checked(originalReminder is not null) };
+        reminderDateEditor = new DateEditor
         {
-            Text = FormatDateTime(existing?.ReminderDateTime),
-            X = 12, Y = 3, Width = 20
+            X = FieldColumn, Y = 3,
+            Value = reminderDefault.Date
         };
-        var reminderHint = new Label { Text = "e.g. 2026-10-30 09:00", X = 34, Y = 3 };
+        reminderTimeEditor = new TimeEditor
+        {
+            X = Pos.Right(reminderDateEditor) + 1, Y = 3,
+            Format = ShortTimeFormat(),
+            Value = reminderDefault.TimeOfDay
+        };
 
         var notesLabel = new Label { Text = "_Notes:", X = 0, Y = 5 };
 #pragma warning disable CS0618
         notesField = new TextView
         {
             Text = existing?.Body?.Content ?? "",
-            X = 12, Y = 5, Width = 50, Height = 6,
+            X = FieldColumn, Y = 5, Width = 50, Height = 6,
             WordWrap = true
         };
 #pragma warning restore CS0618
 
-        Add(titleLabel, titleField, dueLabel, dueField, dueHint, reminderLabel, reminderField, reminderHint,
+        Add(titleLabel, titleField, hasDueBox, dueEditor, hasReminderBox, reminderDateEditor, reminderTimeEditor,
             notesLabel, notesField);
+
+        // Editors for a date the task doesn't have are greyed out and skipped by Tab.
+        hasDueBox.ValueChanged += (_, _) => UpdateEnabled();
+        hasReminderBox.ValueChanged += (_, _) => UpdateEnabled();
+        UpdateEnabled();
 
         var nextRow = 12;
         if (existing is not null)
@@ -89,8 +112,8 @@ public class TaskDialog : Dialog<TaskEdit>
             completedBox = new CheckBox
             {
                 Text = "_Completed",
-                X = 12, Y = nextRow,
-                Value = existing.Status == TaskStatus.Completed ? CheckState.Checked : CheckState.UnChecked
+                X = FieldColumn, Y = nextRow,
+                Value = Checked(existing.Status == TaskStatus.Completed)
             };
             Add(completedBox);
             nextRow++;
@@ -101,6 +124,25 @@ public class TaskDialog : Dialog<TaskEdit>
 
         AddButton(new Button { Text = "_Cancel" });
         AddButton(new Button { Text = "_Save" });
+    }
+
+    private static CheckState Checked(bool value) => value ? CheckState.Checked : CheckState.UnChecked;
+
+    private static DateTime? TruncateToMinute(DateTime? value) =>
+        value is { } v ? new DateTime(v.Year, v.Month, v.Day, v.Hour, v.Minute, 0, v.Kind) : null;
+
+    /// <summary>TimeEditor shows the long time pattern by default; reminders don't need seconds.</summary>
+    private static DateTimeFormatInfo ShortTimeFormat()
+    {
+        var format = (DateTimeFormatInfo)CultureInfo.CurrentCulture.DateTimeFormat.Clone();
+        format.LongTimePattern = format.ShortTimePattern;
+        return format;
+    }
+
+    private void UpdateEnabled()
+    {
+        dueEditor.Enabled = hasDueBox.Value == CheckState.Checked;
+        reminderDateEditor.Enabled = reminderTimeEditor.Enabled = hasReminderBox.Value == CheckState.Checked;
     }
 
     protected override bool OnAccepting(CommandEventArgs args)
@@ -135,18 +177,10 @@ public class TaskDialog : Dialog<TaskEdit>
             return false;
         }
 
-        if (!TryParseOptionalDate(dueField.Text, out var due))
-        {
-            error = $"\"{dueField.Text}\" isn't a date.";
-            return false;
-        }
-
-        if (!TryParseOptionalDate(reminderField.Text, out var reminder))
-        {
-            error = $"\"{reminderField.Text}\" isn't a date and time.";
-            return false;
-        }
-
+        DateTime? due = hasDueBox.Value == CheckState.Checked ? dueEditor.Value.Date : null;
+        DateTime? reminder = hasReminderBox.Value == CheckState.Checked
+            ? TruncateToMinute(reminderDateEditor.Value.Date + reminderTimeEditor.Value)
+            : null;
         var notes = notesField.Text;
 
         if (original is null)
@@ -157,8 +191,8 @@ public class TaskDialog : Dialog<TaskEdit>
 
         // Only report fields that differ from what was loaded, so that untouched fields
         // are never written back.
-        var dueChanged = dueField.Text.Trim() != FormatDate(original.DueDateTime);
-        var reminderChanged = reminderField.Text.Trim() != FormatDateTime(original.ReminderDateTime);
+        var dueChanged = due != originalDue;
+        var reminderChanged = reminder != originalReminder;
         var originalNotes = original.Body?.Content ?? "";
 
         TaskStatus? status = null;
@@ -181,23 +215,6 @@ public class TaskDialog : Dialog<TaskEdit>
             ClearDueDate: dueChanged && due is null,
             ClearReminder: reminderChanged && reminder is null);
         return true;
-    }
-
-    private static bool TryParseOptionalDate(string text, out DateTime? value)
-    {
-        value = null;
-        if (string.IsNullOrWhiteSpace(text))
-        {
-            return true;
-        }
-
-        if (DateTime.TryParse(text.Trim(), CultureInfo.CurrentCulture, DateTimeStyles.None, out var parsed))
-        {
-            value = parsed;
-            return true;
-        }
-
-        return false;
     }
 
     internal static string FormatDate(DateTimeTimeZone? value) =>

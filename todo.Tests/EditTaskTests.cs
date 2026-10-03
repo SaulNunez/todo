@@ -1,3 +1,4 @@
+using Microsoft.Graph.Models;
 using TaskStatus = Microsoft.Graph.Models.TaskStatus;
 
 namespace todo.Tests;
@@ -149,5 +150,44 @@ public class EditTaskTests
         Assert.DoesNotContain("dueDateTime", body);
         Assert.DoesNotContain("reminderDateTime", body);
         Assert.DoesNotContain("isReminderOn", body);
+    }
+
+    [Fact]
+    public async Task Setting_a_reminder_turns_it_on()
+    {
+        // Without isReminderOn, To Do stores the reminder time but never sends the alert.
+        var stub = new StubGraph();
+        stub.Responder = _ => """{"id":"T1"}""";
+        var reminder = new DateTimeTimeZone { DateTime = "2026-10-30T15:00:00", TimeZone = "UTC" };
+
+        await stub.CreateApiQueries().EditTask("T1", "L1", reminder: reminder);
+
+        var body = stub.PatchRequests.Single().Body;
+        Assert.Contains("\"reminderDateTime\"", body);
+        Assert.Contains("\"isReminderOn\":true", body);
+    }
+
+    [Fact]
+    public async Task Creating_a_task_with_a_reminder_turns_it_on()
+    {
+        var stub = new StubGraph();
+        stub.Responder = _ => """{"id":"T1"}""";
+        var reminder = new DateTimeTimeZone { DateTime = "2026-10-30T15:00:00", TimeZone = "UTC" };
+
+        await stub.CreateApiQueries().CreateTask("Buy milk", "L1", reminder: reminder);
+
+        Assert.Contains("\"isReminderOn\":true", stub.PostRequests.Single().Body);
+    }
+
+    [Fact]
+    public async Task Creating_a_task_without_a_reminder_leaves_it_off()
+    {
+        // Negative control for the test above.
+        var stub = new StubGraph();
+        stub.Responder = _ => """{"id":"T1"}""";
+
+        await stub.CreateApiQueries().CreateTask("Buy milk", "L1");
+
+        Assert.DoesNotContain("isReminderOn", stub.PostRequests.Single().Body);
     }
 }
