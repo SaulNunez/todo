@@ -1,4 +1,5 @@
 using todo;
+using todo.Tui;
 using System.CommandLine;
 using System.CommandLine.Builder;
 using System.CommandLine.Parsing;
@@ -10,6 +11,13 @@ class Program
 
     static async Task<int> Main(string[] args)
     {
+        // A bare "todo" in a real terminal opens the interactive UI. Piped or
+        // redirected runs keep the plain usage output, so scripts are unaffected.
+        if (args.Length == 0 && TodoTui.IsSupported)
+        {
+            args = ["ui"];
+        }
+
         // Sign-in is deferred until a command actually needs it, so that --help,
         // --version and parse errors do not trigger a device-code login.
         var todoActions = new Lazy<Task<TodoActions>>(CreateTodoActionsAsync);
@@ -150,6 +158,26 @@ class Program
         deleteListCommand.Add(deleteListNameArgument);
         showListsCommand.Add(deleteListCommand);
         #endregion DeleteListCommand
+
+        #region UiCommand
+        var uiCommand = new Command("ui", "Browse and edit your tasks interactively. Also opens when todo is run with no arguments.");
+        var uiListNameArgument = new Argument<string?>("listName", "List to open first.")
+        {
+            Arity = ArgumentArity.ZeroOrOne
+        };
+        uiCommand.Add(uiListNameArgument);
+        uiCommand.SetHandler(async (listName) =>
+        {
+            // Checked before signing in, so a piped "todo ui" fails fast instead of
+            // prompting for a login it can't use.
+            TodoTui.EnsureSupported();
+
+            // Sign in (which may print a device-code prompt) before the UI takes over the screen.
+            var actions = await todoActions.Value;
+            TodoTui.Run(actions, listName);
+        }, uiListNameArgument);
+        rootCommand.Add(uiCommand);
+        #endregion UiCommand
 
         var parser = new CommandLineBuilder(rootCommand)
             .UseDefaults()

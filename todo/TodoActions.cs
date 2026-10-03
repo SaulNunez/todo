@@ -80,4 +80,36 @@ public class TodoActions(ApiQueries api)
 
         return await api.GetTasksInList(listId);
     }
+
+    // The interactive UI already holds list and task IDs. Going back through title
+    // matching would fail on duplicate titles and miss a task that was just renamed.
+
+    public async Task<string> ResolveListId(string listName)
+    {
+        return await api.GetListId(listName) ?? throw new TodoCliException($"List \"{listName}\" couldn't be found.");
+    }
+
+    public Task<List<TodoTask>> GetTasks(string listId)
+    {
+        return api.GetTasksInList(listId);
+    }
+
+    public Task<TodoTask?> CreateTaskInList(string listId, string title, DateTime? dueDate = null,
+        DateTime? reminder = null, string? notes = null)
+    {
+        return api.CreateTask(title, listId, ToGraphDateTime(reminder), ToGraphDateTime(dueDate), notes);
+    }
+
+    public Task<TodoTask?> EditTaskById(string listId, string taskId, string? newTitle = null,
+        TaskStatus? status = null, DateTime? dueDate = null, DateTime? reminder = null, string? notes = null,
+        bool clearDueDate = false, bool clearReminder = false)
+    {
+        return api.EditTask(taskId, listId, newTitle, ToGraphDateTime(reminder), ToGraphDateTime(dueDate),
+            status: status, notes: notes, clearDueDate: clearDueDate, clearReminder: clearReminder);
+    }
+
+    public Task DeleteTaskById(string listId, string taskId)
+    {
+        return api.DeleteTask(listId, taskId);
+    }
 }

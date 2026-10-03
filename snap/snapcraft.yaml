@@ -14,6 +14,12 @@ architectures:
   - build-on: amd64
   - build-on: arm64
 
+# Neither the jammy archive nor the dotnet-sdk snap carries .NET 10;
+# Canonical publishes it for jammy through this PPA.
+package-repositories:
+  - type: apt
+    ppa: dotnet/backports
+
 parts:
   todo:
     source: .
@@ -21,7 +27,7 @@ parts:
     dotnet-build-configuration: Release
     dotnet-self-contained-runtime-identifier: linux-x64
     build-packages:
-      - dotnet-sdk-8.0
+      - dotnet-sdk-10.0
     stage-packages:
       - libicu70
   appsettings:
