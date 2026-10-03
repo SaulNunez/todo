@@ -1,9 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <!-- Matches the app's target framework so CI (which installs 8.0.x) can build both.
+    <!-- Matches the app's target framework so CI (which installs 10.0.x) can build both.
          RollForward lets the tests also run on a machine that only has a newer runtime. -->
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <RollForward>Major</RollForward>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>

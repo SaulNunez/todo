@@ -102,4 +102,52 @@ public class EditTaskTests
 
         Assert.Contains("Nope", exception.Message);
     }
+
+    [Fact]
+    public async Task Clearing_the_due_date_sends_an_explicit_null()
+    {
+        // A null dueDate argument means "leave alone", so removing a date from the
+        // interactive editor needs the flag to put dueDateTime:null on the wire.
+        var stub = new StubGraph();
+        stub.Responder = _ => """{"id":"T1"}""";
+
+        await stub.CreateApiQueries().EditTask("T1", "L1", clearDueDate: true);
+
+        var body = stub.PatchRequests.Single().Body;
+        Assert.Contains("\"dueDateTime\":null", body);
+        // Regression: assigning null to the typed property made Kiota write the key twice.
+        Assert.Equal(1, Occurrences(body, "\"dueDateTime\""));
+    }
+
+    static int Occurrences(string text, string value) =>
+        (text.Length - text.Replace(value, "").Length) / value.Length;
+
+    [Fact]
+    public async Task Clearing_the_reminder_sends_an_explicit_null_and_turns_it_off()
+    {
+        var stub = new StubGraph();
+        stub.Responder = _ => """{"id":"T1"}""";
+
+        await stub.CreateApiQueries().EditTask("T1", "L1", clearReminder: true);
+
+        var body = stub.PatchRequests.Single().Body;
+        Assert.Contains("\"reminderDateTime\":null", body);
+        Assert.Equal(1, Occurrences(body, "\"reminderDateTime\""));
+        Assert.Contains("\"isReminderOn\":false", body);
+    }
+
+    [Fact]
+    public async Task Edits_without_the_clear_flags_leave_dates_out()
+    {
+        // Negative control for the two tests above.
+        var stub = new StubGraph();
+        stub.Responder = _ => """{"id":"T1"}""";
+
+        await stub.CreateApiQueries().EditTask("T1", "L1", status: TaskStatus.Completed);
+
+        var body = stub.PatchRequests.Single().Body;
+        Assert.DoesNotContain("dueDateTime", body);
+        Assert.DoesNotContain("reminderDateTime", body);
+        Assert.DoesNotContain("isReminderOn", body);
+    }
 }

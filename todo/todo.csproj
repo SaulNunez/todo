@@ -2,24 +2,29 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <PublishTrimmed>true</PublishTrimmed>
     <PublishReadyToRun>true</PublishReadyToRun>
     <PublishSingleFile>true</PublishSingleFile>
+    <!-- Terminal.Gui pulls in a native library (onigwrap, via TextMateSharp). Bundling it
+         keeps the publish output to the executable plus appsettings.json, which is all
+         the release workflow and the MSI package copy. -->
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <RuntimeIdentifiers>win-x64;osx-x64;linux-x64;win-arm64;osx-arm64;linux-arm64</RuntimeIdentifiers>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Azure.Identity" Version="1.13.2" />
-    <PackageReference Include="Microsoft.Extensions.Configuration" Version="9.0.2" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="9.0.2" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="9.0.2" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="9.0.2" />
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.11" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.11" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.11" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="10.0.11" />
     <PackageReference Include="Microsoft.Graph" Version="5.70.0" />
     <PackageReference Include="Microsoft.Identity.Client" Version="4.68.0" />
     <PackageReference Include="Pastel" Version="6.0.1" />
+    <PackageReference Include="Terminal.Gui" Version="2.5.0" />
     <PackageReference Include="System.CommandLine" Version="2.0.0-beta4.22272.1" />
   </ItemGroup>
 

@@ -22,6 +22,32 @@ Please check in the Release section of this repository.
 
 ## Setup
 
+## Interactive mode
+Run `todo` with no arguments in a terminal to open a full-screen view of your lists and tasks:
+
+```bash
+todo
+```
+
+To open straight on a list, pass its name. The same matching rules as `todo tasks` apply:
+
+```bash
+todo ui "Shopping List"
+```
+
+| Key | Action |
+| --- | --- |
+| Tab | Move between the lists and tasks panes |
+| ↑ / ↓ | Select a list or task |
+| Ctrl+N | New task in the selected list |
+| Enter / F2 | Edit the selected task (title, due date, reminder, notes, completed) |
+| Space | Mark the selected task done / not done |
+| Delete | Delete the selected task (asks first) |
+| F5 | Refresh |
+| Esc / Ctrl+Q | Quit |
+
+When output is piped or redirected, `todo` doesn't open the interactive view, so scripts keep working as before.
+
 ## Lists
 ### Create list
 ```bash

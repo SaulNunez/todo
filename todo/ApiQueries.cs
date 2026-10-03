@@ -119,7 +119,8 @@ public class ApiQueries
 
     public async Task<TodoTask?> EditTask(string taskId, string listId, string? newTitle = null,
         DateTimeTimeZone? reminder = null, DateTimeTimeZone? dueDate = null,
-        List<FileInfo>? fileUri = null,  TaskStatus? status = null, string? notes = null )
+        List<FileInfo>? fileUri = null,  TaskStatus? status = null, string? notes = null,
+        bool clearDueDate = false, bool clearReminder = false)
     {
         // PATCH only the fields being changed. Reading the task and sending the whole
         // entity back would also echo server-owned properties such as CreatedDateTime,
@@ -136,11 +137,21 @@ public class ApiQueries
             };
         }
 
-        if(reminder != null){
+        // A null argument means "leave alone", so removing a date needs its own flag.
+        // The null goes through AdditionalData: assigning null to the typed property
+        // makes Kiota write the key twice ({"dueDateTime":null,"dueDateTime":null}).
+        if(clearReminder){
+            changes.AdditionalData["reminderDateTime"] = null!;
+            changes.IsReminderOn = false;
+        }
+        else if(reminder != null){
             changes.ReminderDateTime = reminder;
         }
 
-        if(dueDate != null){
+        if(clearDueDate){
+            changes.AdditionalData["dueDateTime"] = null!;
+        }
+        else if(dueDate != null){
             changes.DueDateTime = dueDate;
         }
 
